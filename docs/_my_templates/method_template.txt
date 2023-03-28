@@ -1,0 +1,4 @@
+{{method_name}}
+{{under_method_name}}
+
+.. automethod:: {{to_method}}

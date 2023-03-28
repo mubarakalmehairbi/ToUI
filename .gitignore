@@ -1,0 +1,14 @@
+.idea/*
+.config/*
+venv/*
+replit*
+.replit*
+.upm/*
+poetry.lock
+pyproject.toml
+.breakpoints
+/_*
+__pycache__
+/dist
+/build
+/toui.egg-info

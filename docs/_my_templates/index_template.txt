@@ -1,0 +1,13 @@
+{{title}}
+{{under_title}}
+
+{{version}}
+
+{{read_me}}
+
+Table of contents
+-----------------
+.. toctree::
+   :maxdepth: 2
+
+   {{contents}}

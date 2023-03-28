@@ -1,0 +1,8 @@
+{{title}}
+{{under_title}}
+
+{{text}}
+
+.. code-block:: python
+
+   {{code}}

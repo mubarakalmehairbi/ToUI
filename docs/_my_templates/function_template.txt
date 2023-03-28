@@ -1,0 +1,4 @@
+{{func_name}}
+{{under_func_name}}
+
+.. autofunction:: {{to_func}}
