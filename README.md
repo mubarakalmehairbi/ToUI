@@ -65,13 +65,12 @@ if __name__ == "__main__":
 ```
 
 # Make the app responsive
-Check this [example](https://toui.readthedocs.io/en/latest/Examples.simple_website.html)
+Check this [example](https://toui.readthedocs.io/en/latest/Examples.example_1_simple_website.html)
 and [other examples](https://toui.readthedocs.io/en/latest/Examples.html) to learn how
 to make the website / desktop app responsive.
 
 # Deploy the app
-You can deploy the web app the same way you deploy a `Flask` app
-[How to deploy Flask app](https://flask.palletsprojects.com/deploying/).
+You can deploy the web app the same way you deploy a `Flask` app ([How to deploy Flask apps](https://flask.palletsprojects.com/deploying/)).
 The only difference is that you need to access the `Flask` object first:
 ```python
 app = Website(__name__)
