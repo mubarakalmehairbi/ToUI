@@ -70,7 +70,7 @@ and [other examples](https://toui.readthedocs.io/en/latest/Examples.html) to lea
 to make the website / desktop app responsive.
 
 # Deploy the app
-You can deploy the web app the same way you deploy a `Flask` app ([How to deploy Flask apps](https://flask.palletsprojects.com/deploying/)).
+You can deploy the web app the same way you deploy a `Flask` app ([How to deploy Flask app](https://flask.palletsprojects.com/deploying/)).
 The only difference is that you need to access the `Flask` object first:
 ```python
 app = Website(__name__)
