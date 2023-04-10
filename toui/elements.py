@@ -424,8 +424,9 @@ class Element:
             if declaration.name == property:
                 property_value = ""
                 for v in declaration.value:
-                    property_value += str(v.value) + str(v.unit)
-                    style += str(v.value)
+                    property_value += str(v.value)
+                    if v.unit is not None:
+                        property_value += str(v.unit)
                 return property_value
 
     def set_style_property(self, property, value):

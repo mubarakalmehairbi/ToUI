@@ -3,4 +3,4 @@ from .pages import Page
 from .elements import Element, IFrameElement
 from .structure import ToUIBlueprint
 
-__version__ = "v1.0.2-beta"
+__version__ = "v1.0.3-beta"
