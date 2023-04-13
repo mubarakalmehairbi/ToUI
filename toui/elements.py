@@ -47,6 +47,14 @@ class _ElementSignal(Signal):
         return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
 
     @staticmethod
+    def del_attr(**kwargs):
+        js_func = "_delAttr"
+        js_args = []
+        js_kwargs = _ElementSignal._default_kwargs(kwargs)
+        js_kwargs['name'] = kwargs['name']
+        return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+
+    @staticmethod
     def set_content(**kwargs):
         js_func = "_setContent"
         js_args = []
@@ -221,7 +229,7 @@ class Element:
 
         Returns
         -------
-        elements_list: list
+        elements_list: list(Element)
             A list of `Element` objects that match the parameters.
 
         """
@@ -301,6 +309,11 @@ class Element:
 
         """
         return self.get_attr(name) != None
+
+    @_ElementSignal()
+    def del_attr(self, name):
+        if self.has_attr(name):
+            del self._element.attrs[name]
 
     def get_id(self):
         """
@@ -403,7 +416,7 @@ class Element:
 
     def get_style_property(self, property):
         """
-        Gets the value of a CSS property inside ``style`` attribute.
+        Gets the value of a CSS property inside the ``style`` attribute.
 
         Parameters
         ----------
@@ -431,7 +444,7 @@ class Element:
 
     def set_style_property(self, property, value):
         """
-        Sets the value of a CSS property inside ``style`` attribute.
+        Sets the value of a CSS property inside the ``style`` attribute.
 
         Parameters
         ----------
@@ -466,7 +479,7 @@ class Element:
 
     def get_width_property(self):
         """
-        Gets the value of the CSS property `width` inside ``style`` attribute.
+        Gets the value of the CSS property `width` inside the ``style`` attribute.
 
         Returns
         -------
@@ -477,7 +490,7 @@ class Element:
 
     def set_width_property(self, value):
         """
-        Sets the value of the CSS property `width` inside ``style`` attribute.
+        Sets the value of the CSS property `width` inside the ``style`` attribute.
 
         Parameters
         ----------
@@ -488,7 +501,7 @@ class Element:
 
     def get_height_property(self):
         """
-        Gets the value of the CSS property `heigth` inside ``style`` attribute.
+        Gets the value of the CSS property `height` inside the ``style`` attribute.
 
         Returns
         -------
@@ -499,7 +512,7 @@ class Element:
 
     def set_height_property(self, value):
         """
-        Sets the value of the CSS property `height` inside ``style`` attribute.
+        Sets the value of the CSS property `height` inside the ``style`` attribute.
 
         Parameters
         ----------

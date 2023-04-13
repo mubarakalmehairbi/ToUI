@@ -11,6 +11,7 @@ Methods
    :toctree:
 
    toui.elements.IFrameElement.add_content
+   toui.elements.IFrameElement.del_attr
    toui.elements.IFrameElement.from_bs4_tag
    toui.elements.IFrameElement.from_str
    toui.elements.IFrameElement.get_attr

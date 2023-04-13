@@ -1,7 +1,7 @@
 Examples
 ========
 
-Below you can find some examples on using the package. Some of the examples use files inside a folder called 'assets'. To access this folder, click on this `link <https://github.com/mubarakalmehairbi/ToUI/tree/main/examples>`_.
+Below you can find some examples of using the package. Some of the examples use files inside a folder called 'assets'. To access this folder, click on this `link <https://github.com/mubarakalmehairbi/ToUI/tree/main/examples>`_.
 
 Basic examples
 --------------

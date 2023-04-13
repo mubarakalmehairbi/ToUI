@@ -8,7 +8,7 @@ is usually required.
 # Why ToUI
 - Converts HTML files into a responsive app.
 - Simple to understand for programmers who only know Python and HTML.
-- The method of creating websites and the method of creating desktop apps are similar, which makes it easy to convert a website to desktop app and vice versa.
+- The method of creating websites and the method of creating desktop apps are similar, which makes it easy to convert a website to a desktop app and vice versa.
 
 # How to install
 Run this command:

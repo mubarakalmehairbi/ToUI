@@ -3,7 +3,7 @@ ToUI Blueprints
 
 `ToUI.Blueprint` is a class that inherits `flask.Blueprint` and adds more methods to it.
 The difference between this class and `flask.Blueprint` is that you can add `Page`
-objects to this class. To learn how to use blueprints, check `flask's` documentation
+objects to this class. To learn how to use blueprints, check `Flask's` documentation
 https://flask.palletsprojects.com/.
 """
 from toui import Page, Website, ToUIBlueprint

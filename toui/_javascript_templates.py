@@ -47,7 +47,11 @@ function _getDoc() {{
     var input_elements = document.getElementsByTagName("input")
     for (var input_element of input_elements) {{
         input_element.setAttribute("value", input_element.value)
-        input_element.setAttribute("checked", input_element.checked)
+        if (input_element.checked == true) {{
+            input_element.setAttribute("checked", "")
+        }} else {{
+            input_element.removeAttribute("checked")
+        }}
     }}
     var serializer = new XMLSerializer()
     const doc = serializer.serializeToString(document)
@@ -100,6 +104,14 @@ function _setAttr(kwargs) {{
     }}
 }}
 
+function _delAttr(kwargs) {{
+    var element = _getElement(kwargs['selector'])
+    element.removeAttribute(kwargs['name'])
+    if (kwargs['name'] == 'checked') {{
+        element.checked = false
+    }}
+}}
+
 function _setContent(kwargs) {{
     var element = _getElement(kwargs['selector'])
     element.innerHTML = kwargs['content']
@@ -141,6 +153,9 @@ function _findAndExecute(jsonString) {{
     }}
     if (func == "_setAttr") {{
         _setAttr(kwargs)
+    }}
+    if (func == "_delAttr") {{
+        _delAttr(kwargs)
     }}
     if (func == "_setContent") {{
         _setContent(kwargs)

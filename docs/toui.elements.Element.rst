@@ -11,6 +11,7 @@ Methods
    :toctree:
 
    toui.elements.Element.add_content
+   toui.elements.Element.del_attr
    toui.elements.Element.from_bs4_tag
    toui.elements.Element.from_str
    toui.elements.Element.get_attr

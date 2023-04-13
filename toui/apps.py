@@ -86,7 +86,7 @@ class _FuncWithPage:
         
 class Website(_App):
     """
-    A class that create a web application from HTML files.
+    A class that creates a web application from HTML files.
 
     Attributes
     ----------
@@ -97,7 +97,7 @@ class Website(_App):
         These are URLs that ToUI does not allow the user to use because ToUI uses them.
 
     user_vars: dict
-        A dictionary that stores data unique to each user. The data are stored in `flask` `session` object.
+        A dictionary that stores data unique to each user. The data are stored in a `flask` `session` object.
 
     pages: list
         A list of added `Page` objects.
@@ -360,7 +360,7 @@ class Website(_App):
         """
         Validate data received from JavaScript before using it.
 
-        ToUI receives data from JavaScript in the form of JSON object. To validate this data
+        ToUI receives data from JavaScript in the form of a JSON object. To validate this data
         before allowing ToUI to use it, input a function that checks the data. This function
         should have one argument `data` and should either return ``True`` or ``False``.
         If the function returns ``False``, the data will not be used by ToUI.
@@ -374,7 +374,7 @@ class Website(_App):
 
         `func` contains the name of the Python function that should be called, `args` are the
         arguments of this function, `url` is the URL of the HTML page that sent the data, 'html'
-        if the HTML document itself as a string.
+        is the HTML document itself as a string.
         However, note that the structure of the JSON object might change in future versions of
         ToUI.
 
@@ -424,7 +424,7 @@ class _DesktopAppApi:
 
 class DesktopApp(_App):
     """
-    A class that create a desktop application from HTML files.
+    A class that creates a desktop application from HTML files.
 
     Attributes
     ----------

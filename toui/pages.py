@@ -70,7 +70,7 @@ class Page:
 
     view_func: Callable
         The view function of the `Page`. This is the function that will be decorated by
-        `Flask.route()` in when creating web apps.
+        `Flask.route()` when creating web apps.
 
     Examples
     --------
