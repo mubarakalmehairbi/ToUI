@@ -2,6 +2,7 @@
 Contains default functions that can be replaced by the user inside other modules.
 """
 
+
 def validate_ws(ws):
     """The default function for validating `simple_websocket.ws.Server` object inside `Website`."""
     return True

@@ -183,7 +183,9 @@ class Website(_App):
             to the blueprint instead of the `Flask` app.
 
         endpoint
-            `endpoint` parameter in `flask.Flask.route`.
+            `endpoint` parameter in `flask.Flask.route`. If ``None``, the endpoint will be set
+            as the unique id of the `Page`. The unique id is obtained through the ``id()``
+            function and converted to a string.
             
         """
         for page in pages:
@@ -194,15 +196,15 @@ class Website(_App):
             page._add_script()
             page._app = self
             self.pages.append(page)
-            view_func = page.view_func
+            view_func = page._view_func
             if self._auth:
                 view_func = self._auth.required(view_func)
             if not endpoint:
-                endpoint = page.url
+                endpoint = str(id(page))
             if blueprint:
-                route = blueprint.route(page.url, methods=['GET', 'POST'], endpoint=page.url)(view_func)
+                route = blueprint.route(page.url, methods=['GET', 'POST'], endpoint=endpoint)(view_func)
             else:
-                route = self.flask_app.route(page.url, methods=['GET', 'POST'], endpoint=page.url)(view_func)
+                route = self.flask_app.route(page.url, methods=['GET', 'POST'], endpoint=endpoint)(view_func)
             for func in page._functions.values():
                 self._add_functions(func)
 
@@ -365,17 +367,28 @@ class Website(_App):
         should have one argument `data` and should either return ``True`` or ``False``.
         If the function returns ``False``, the data will not be used by ToUI.
 
-        Currently, the JSON object contains the following keys:
+        Currently, there are two types of JSON objects that ToUI receives.
+        One of the JSON objects contains the following keys:
 
-        {func: ...,
+        {type: 'page',
+         func: ...,
          args: ...,
          url: ...,
          html: ...}
 
-        `func` contains the name of the Python function that should be called, `args` are the
+        `type` is the type of JSON object, and it always has the value 'page' when JavaScript sends the HTML document
+        as data. `func` contains the name of the Python function that should be called, `args` are the
         arguments of this function, `url` is the URL of the HTML page that sent the data, 'html'
         is the HTML document itself as a string.
-        However, note that the structure of the JSON object might change in future versions of
+
+        Another type of JSON object is a JSON that contains uploaded files:
+
+        {type: 'files',
+         files: ...}
+
+        You can get the uploaded files using the method `Element.get_files()`.
+
+        However, note that the structures of the JSON objects might change in future versions of
         ToUI.
 
         Parameters
@@ -390,7 +403,6 @@ class Website(_App):
 
         """
         self._validate_data = func
-
 
     def register_toui_blueprint(self, blueprint, **options):
         """

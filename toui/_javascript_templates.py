@@ -11,11 +11,13 @@ socket.addEventListener('message', ev => {{
     _findAndExecute(ev.data)
   }});
 const urlPath = location.pathname
-function _toPy(...arguments) {{
+async function _toPy(...arguments) {{
     var func = arguments.shift()
-    var json = {{func:func,
+    var json = {{type: "page",
+                func:func,
                 args: arguments,
                 url: urlPath}}
+    var properties = _manageProperties()
     json['html'] = _getDoc()
     var jsonstring = JSON.stringify(json)
     if (socket.readyState === 0) {{
@@ -27,32 +29,32 @@ function _toPy(...arguments) {{
     }}
 }}
 
+function _send(jsonstring) {{
+    socket.send(jsonstring)
+}}
 """
     
     
 desktop_template = f"""
 function _toPy(...arguments) {{
     var func = arguments.shift()
-    var json = {{func:func,
+    var json = {{type: "page",
+                func: func,
                 args: arguments}}
+    json['properties'] = _manageProperties()
     json['html'] = _getDoc()
     var jsonstring = JSON.stringify(json)
     pywebview.api.communicate(jsonstring)
+}}
+
+function _send(jsonstring) {{
+    return jsonstring
 }}
 """
 
 
 common_template = f"""
 function _getDoc() {{
-    var input_elements = document.getElementsByTagName("input")
-    for (var input_element of input_elements) {{
-        input_element.setAttribute("value", input_element.value)
-        if (input_element.checked == true) {{
-            input_element.setAttribute("checked", "")
-        }} else {{
-            input_element.removeAttribute("checked")
-        }}
-    }}
     var serializer = new XMLSerializer()
     const doc = serializer.serializeToString(document)
     return doc
@@ -63,6 +65,44 @@ function _setDoc(kwargs) {{
     document.write(kwargs['doc'])
     document.close()
     }}
+    
+async function _manageProperties() {{
+    var properties = {{files: []}}
+    var input_elements = document.getElementsByTagName("input")
+    for (var input_element of input_elements) {{
+        input_element.setAttribute("value", input_element.value)
+        if (input_element.checked == true) {{
+            input_element.setAttribute("checked", "")
+        }} else {{
+            input_element.removeAttribute("checked")
+        }}
+    }}
+    return properties
+}}
+
+async function _getFiles(kwargs) {{
+    var files = []
+    var element = _getElement(kwargs['selector'])
+    if (element.type == "file") {{
+        for (var file of element.files) {{
+            var selector = _getElementSelector(element)
+            var fileJSON = {{name: file.name,
+                             size: file.size,
+                             type: file.type,
+                             'last-modified': file.lastModified,
+                             'last-modified-date': file.lastModifiedDate,
+                             selector: selector}}
+            if (kwargs['with_content'] == true) {{
+                await file.text().then(function (text) {{
+                    fileJSON['content'] = text
+                }})
+            }}
+            files.push(fileJSON)
+        }}
+    }}
+    var jsonstring = JSON.stringify({{data: files, type: "files"}})
+    return _send(jsonstring)
+}}
     
 function _getElement(kwargs) {{
     var number = 0
@@ -79,6 +119,32 @@ function _getElement(kwargs) {{
         return element
     }}
 }}
+
+var _getElementSelector = function(el) {{
+  if (!(el instanceof Element))
+            return;
+        var path = [];
+        while (el.nodeType === Node.ELEMENT_NODE) {{
+            var selector = el.nodeName.toLowerCase();
+            if (el.id) {{
+                selector += '#' + el.id;
+                path.unshift(selector);
+                break;
+            }} else {{
+                var sib = el, nth = 1;
+                while (sib = sib.previousElementSibling) {{
+                    if (sib.nodeName.toLowerCase() == selector)
+                       nth++;
+                }}
+                if (nth != 1)
+                    selector += ":nth-of-type("+nth+")";
+            }}
+            path.unshift(selector);
+            el = el.parentNode;
+        }}
+        path = path.join(" > ");
+        return path;
+     }}
 
 function _replaceElement(kwargs) {{
     var old_element = _getElement(kwargs['selector'])
@@ -171,6 +237,9 @@ function _findAndExecute(jsonString) {{
     }}
     if (func == "_goTo") {{
         _goTo(kwargs)
+    }}
+    if (func == "_getFiles") {{
+        _getFiles(kwargs)
     }}
 }}"""
 

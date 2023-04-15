@@ -55,6 +55,14 @@ class _ElementSignal(Signal):
         return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
 
     @staticmethod
+    def get_files(**kwargs):
+        js_func = "_getFiles"
+        js_args = []
+        js_kwargs = _ElementSignal._default_kwargs(kwargs)
+        js_kwargs['with_content'] = kwargs['with_content']
+        return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+
+    @staticmethod
     def set_content(**kwargs):
         js_func = "_setContent"
         js_args = []
@@ -72,7 +80,6 @@ class _ElementSignal(Signal):
 
 
 class Element:
-
     """
     Creates an HTML element.
 
@@ -112,6 +119,10 @@ class Element:
 
     def __repr__(self):
         return self.to_str()
+
+    @property
+    def _app(self):
+        return self._parent_page._app
 
     @_ElementSignal()
     def from_str(self, html_str):
@@ -312,6 +323,15 @@ class Element:
 
     @_ElementSignal()
     def del_attr(self, name):
+        """
+        Removes an HTML element attribute.
+
+        Parameters
+        ----------
+        name: str
+            The name of the attribute.
+
+        """
         if self.has_attr(name):
             del self._element.attrs[name]
 
@@ -369,10 +389,30 @@ class Element:
         """
         self.set_attr("value", value)
 
+    @_ElementSignal(return_type="js")
+    def get_files(self, with_content=True):
+        """
+        Gets uploaded files from element.
+
+        This method is useful when uploading files using ``<input type="file">`` element.
+
+        Parameters
+        ----------
+        with_content: bool, default=True
+            If ``True``, the contents of the files will be included in the output.
+
+        Returns
+        -------
+        list(dict)
+
+        """
+        return []
+
     def get_content(self):
         """
-        Gets the inner HTML content of the element. It is similar to getting the ``Element.innerHTML``
-        property in JavaScript.
+        Gets the inner HTML content of the element.
+
+        It is similar to getting the ``Element.innerHTML`` property in JavaScript.
 
         Returns
         -------

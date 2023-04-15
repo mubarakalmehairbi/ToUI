@@ -18,6 +18,7 @@ Methods
    toui.elements.Element.get_content
    toui.elements.Element.get_element
    toui.elements.Element.get_elements
+   toui.elements.Element.get_files
    toui.elements.Element.get_height_property
    toui.elements.Element.get_id
    toui.elements.Element.get_style_property

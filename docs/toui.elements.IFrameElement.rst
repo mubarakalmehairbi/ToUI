@@ -18,6 +18,7 @@ Methods
    toui.elements.IFrameElement.get_content
    toui.elements.IFrameElement.get_element
    toui.elements.IFrameElement.get_elements
+   toui.elements.IFrameElement.get_files
    toui.elements.IFrameElement.get_height_property
    toui.elements.IFrameElement.get_id
    toui.elements.IFrameElement.get_style_property

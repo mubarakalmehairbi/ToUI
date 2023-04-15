@@ -68,10 +68,6 @@ class Page:
         A `pywebview.Window` object. It is automatically created when adding the `Page` to
         `DesktopApp` and running the app.
 
-    view_func: Callable
-        The view function of the `Page`. This is the function that will be decorated by
-        `Flask.route()` when creating web apps.
-
     Examples
     --------
 
@@ -148,7 +144,8 @@ class Page:
         self._signal_mode = False
         self._signals = []
         self._functions = {}
-        self._view_func = lambda: view_func(self)
+        self._basic_view_func = lambda: view_func(self)
+        self._view_func = self._basic_view_func
 
     def __str__(self):
         return self.to_str()
@@ -267,10 +264,8 @@ class Page:
         Returns
         -------
         element: Element
-            If the element was found, an `Element` object will be returned.
-
-        None
-            If the element was not found.
+            If the element was found, an `Element` object will be returned. Otherwise ``None``
+            will be returned.
 
         """
         bs4_tag = self._html.find(id=element_id)
@@ -415,13 +410,29 @@ class Page:
         self.get_elements(tag_name="html")[0].add_content(script_element)
         return func.__name__
 
-    @property
-    def view_func(self):
-        return self._view_func
+    def on_url_request(self, func, display_return_value=False):
+        """
+        Sets a function that will be called when the user types the URL in a browser or when a request is sent to the
+        URL. You can view it as the `view_func` in Flask.
 
-    @view_func.setter
-    def view_func(self, func):
-        self._view_func = lambda: func(self)
+        Parameters
+        ----------
+        func: Callable
+            The function that will be called when a request is sent to the URL.
+
+        display_return_value: bool, default=False
+            If ``True``, the browser will display the return value of the function when the URL is loaded. If ``False``,
+            the return value will be ignored.
+
+        """
+        def new_func():
+            original_return = self._basic_view_func()
+            new_return = func()
+            if display_return_value:
+                return new_return
+            else:
+                return original_return
+        self._view_func = new_func
 
     def _add_script(self, template_type="web"):
         script_tag = Element("script")
@@ -447,12 +458,17 @@ class Page:
         return func
 
     def _evaluate_js(self, func, kwargs):
+        data_from_js = ""
+        def wait_then_get_result(result):
+            nonlocal data_from_js
+            data_from_js = result
         codejs = f"""
         var kwargs = JSON.parse(\'{json.dumps(kwargs)}\')
         {func}(kwargs)
         """
         debug("EVALUATE: " + codejs)
-        out = self.window.evaluate_js(codejs)
+        self.window.evaluate_js(codejs, callback=wait_then_get_result)
+        return data_from_js
 
     @_PageSignal()
     def _open_another_page(self, url):
