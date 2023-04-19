@@ -54,6 +54,8 @@ function _send(jsonstring) {{
 
 
 common_template = f"""
+_touiFiles = {{}}
+
 function _getDoc() {{
     var serializer = new XMLSerializer()
     const doc = serializer.serializeToString(document)
@@ -90,18 +92,68 @@ async function _getFiles(kwargs) {{
                              size: file.size,
                              type: file.type,
                              'last-modified': file.lastModified,
-                             'last-modified-date': file.lastModifiedDate,
                              selector: selector}}
             if (kwargs['with_content'] == true) {{
                 await file.text().then(function (text) {{
                     fileJSON['content'] = text
                 }})
             }}
+            var keys = Object.keys(_touiFiles)
+            var newKey = 0
+            if (keys.length != 0) {{
+                var lastKey = keys.sort().reverse()[0]
+                const newKey = parseInt(lastKey) + 1
+            }}
+            _touiFiles[newKey.toString()] = file
+            fileJSON['file-id'] = newKey.toString()
             files.push(fileJSON)
         }}
     }}
-    var jsonstring = JSON.stringify({{data: files, type: "files"}})
-    return _send(jsonstring)
+    var jsonString = JSON.stringify({{data: files, type: "files"}})
+    var dataSent = _send(jsonString)
+    return dataSent
+}}
+
+async function _saveFile(kwargs) {{
+    var fileId = kwargs['file-id']
+    var file = _touiFiles[fileId]
+    var reader = new FileReader()
+    if (kwargs['binary'] == true) {{
+        reader.onload = function () {{
+            const buffer = reader.result
+            const content = new Uint8Array(buffer)
+            const lengthPerPart = 16000
+            const charsLength = content.length
+            for (var i = 0; i < charsLength; i += lengthPerPart) {{
+                var smallerContent = [...content.slice(i, i + lengthPerPart)]
+                var jsonString = JSON.stringify({{type: "save files",
+                                                  data: smallerContent,
+                                                  end: false}})
+                var dataSent = _send(jsonString)
+            }}
+            var jsonString = JSON.stringify({{type: "save files", data: [],
+                                              end: true}})
+            var dataSent = _send(jsonString)
+        }}
+        reader.readAsArrayBuffer(file)
+    }} else {{
+        reader.onload = function () {{
+            const content = reader.result
+            const lengthPerPart = 16000
+            const charsLength = content.length
+            for (var i = 0; i < charsLength; i += lengthPerPart) {{
+                var smallerContent = content.substring(i, i + lengthPerPart)
+                var jsonString = JSON.stringify({{type: "save files",
+                                                  data: smallerContent,
+                                                  end: false}})
+                var dataSent = _send(jsonString)
+            }}
+            var jsonString = JSON.stringify({{type: "save files", data: "",
+                                              end: true}})
+            var dataSent = _send(jsonString)
+        }}
+        reader.readAsText(file)
+    }}
 }}
     
 function _getElement(kwargs) {{
@@ -240,6 +292,9 @@ function _findAndExecute(jsonString) {{
     }}
     if (func == "_getFiles") {{
         _getFiles(kwargs)
+    }}
+    if (func == "_saveFile") {{
+        _saveFile(kwargs)
     }}
 }}"""
 

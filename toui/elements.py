@@ -390,7 +390,7 @@ class Element:
         self.set_attr("value", value)
 
     @_ElementSignal(return_type="js")
-    def get_files(self, with_content=True):
+    def get_files(self, with_content=False):
         """
         Gets uploaded files from element.
 
@@ -398,12 +398,17 @@ class Element:
 
         Parameters
         ----------
-        with_content: bool, default=True
+        with_content: bool, default=False
             If ``True``, the contents of the files will be included in the output.
 
         Returns
         -------
-        list(dict)
+        list(File)
+            A list of `File` objects.
+
+        See Also
+        --------
+        ~toui._signals.File
 
         """
         return []

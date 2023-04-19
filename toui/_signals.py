@@ -59,21 +59,140 @@ class Signal:
                     return
 
     def _send(self, signal):
-        debug(f"SENT: {signal}")
         if self.ws:
             self.ws.send(json.dumps(signal))
-            data_from_js = self.ws.receive()
-            data_validation = self.object._app._validate_data(data_from_js)
-            if not data_validation:
-                info("Data validation returns `False`. The data will not be used.")
-                return
-            data_dict = json.loads(data_from_js)
-            debug(f"DATA RECEIVED")
-            return data_dict['data']
+            debug(f"SENT: {signal}")
+            if self.return_type == "js":
+                data_from_js = self.ws.receive()
+                debug(f"DATA RECEIVED")
+                data_validation = self.object._app._validate_data(data_from_js)
+                if not data_validation:
+                    info("Data validation returns `False`. The data will not be used.")
+                    return
+                data_dict = json.loads(data_from_js)
+                debug(f"RECEIVED DATA KEYS: {list(data_dict.keys())}")
+                if data_dict['type'] == "files":
+                    files = []
+                    for file_dict in data_dict['data']:
+                        files.append(File(file_dict, signal, self.object._app, file_dict['file-id'], ws=self.ws))
+                    return files
+                return data_dict['data']
         else:
             out = self.evaluate_js(func=signal['func'], kwargs=signal['kwargs'])
-            try:
-                data_dict = json.loads(out)
-                debug(f"DATA RECEIVED")
-            except: data_dict = {"data": None}
-            return data_dict['data']
+            debug(f"SENT: {signal}")
+            if self.return_type == "js":
+                try:
+                    data_dict = json.loads(out)
+                    debug(f"DATA RECEIVED")
+                    if data_dict['type'] == "files":
+                        files = []
+                        for file_dict in data_dict['data']:
+                            files.append(File(file_dict, signal, self.object._app, file_dict['file-id'], ws=None))
+                        return files
+                except: data_dict = {"data": None}
+                return data_dict['data']
+
+
+class File:
+    """
+    Contains the information of an uploaded file and can be used to save the file contents.
+
+    This object should only be created through `Element.get_files()` method.
+
+    Attributes
+    ----------
+    name
+        Name of the file.
+
+    type
+        Type of the file.
+
+    size
+        Size of the file.
+
+    last_modified
+        The last modified date as the number of milliseconds since the Unix epoch (January 1, 1970 at midnight).
+
+    is_binary: bool
+        Set the value of this attribute to ``True`` only if you want the file content to be converted to bytes
+        before saving it.
+
+    See Also
+    --------
+    Element.get_files()
+
+    """
+    def __init__(self, file_dict, signal, app, file_id, ws=None):
+        self._file_dict = file_dict
+        self.name = self._file_dict['name']
+        self.size = self._file_dict['size']
+        self.type = self._file_dict['type']
+        self.last_modified = self._file_dict['last-modified']
+        self._ws = ws
+        self._id = file_id
+        self._app = app
+        self._signal = signal
+        self.is_binary = False
+
+    def __iter__(self):
+        js_func = "_saveFile"
+        js_args = []
+        js_kwargs = {}
+        js_kwargs['file-id'] = self._id
+        js_kwargs['binary'] = self.is_binary
+        signal = {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+        if self._ws:
+            self._ws.send(json.dumps(signal))
+            debug(f"SENT: {signal}")
+            while True:
+                data_from_js = self._ws.receive()
+                data_validation = self._app._validate_data(data_from_js)
+                if not data_validation:
+                    info("Data validation returns `False`. The data will not be used.")
+                    return
+                data_dict = json.loads(data_from_js)
+                data = data_dict['data']
+                if self.is_binary:
+                    data = bytearray(data)
+                yield data
+                if data_dict['end'] == True:
+                    break
+        else:
+            out = self._signal.evaluate_js(func=signal['func'], kwargs=signal['kwargs'])
+            debug(f"SENT: {signal}")
+            while True:
+                data_from_js = out
+                data_dict = json.loads(data_from_js)
+                data = data_dict['data']
+                if self.is_binary:
+                    data = bytearray(data)
+                yield data
+                if data_dict['end'] == True:
+                    break
+
+    def __repr__(self):
+        return f"<File {self.name}>"
+
+    def save(self, stream):
+        """
+        Saves the contents of the file to a stream.
+
+        Parameters
+        ----------
+        stream
+
+        Examples
+        --------
+        Saving a `File` object to a stream.
+
+        >>> def saveFile():
+        ...     pg = app.get_user_page()
+        ...     input_element = pg.get_element("file-element") # Assuming 'file-content' is an id of an element that uploads files
+        ...     files = input_element.get_files()
+        ...     for file in files:
+        ...         with open(file.name, "w") as stream:
+        ...             file.save(stream)
+        """
+        for data in self:
+            stream.write(data)
+            stream.flush()

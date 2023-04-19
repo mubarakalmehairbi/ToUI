@@ -28,6 +28,7 @@ Other classes
    :toctree:
 
    toui.elements.IFrameElement
+   toui._signals.File
    toui.structure.ToUIBlueprint
 
 

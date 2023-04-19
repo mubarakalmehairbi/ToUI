@@ -2,8 +2,10 @@
 A module that creates web apps and desktop apps.
 """
 import __main__
-from flask import Flask, session
+from flask import Flask, session, request
 from flask_sock import Sock
+from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
+from flask_sqlalchemy import SQLAlchemy
 import webview
 import json
 import inspect
@@ -127,9 +129,6 @@ class Website(_App):
     :py:class:`DesktopApp`
 
     """
-
-    _auth = None
-    _default_vars = {}
     
     def __init__(self, name=None, assets_folder=None, secret_key=None):
         """
@@ -162,9 +161,13 @@ class Website(_App):
         self._socket = Sock(self.flask_app)
         self.pages = []
         self._socket.route("/toui-communicate")(self._communicate)
+
         self.forbidden_urls = ['/toui-communicate']
         self._validate_ws = validate_ws
         self._validate_data = validate_data
+        self._auth = None
+        self._default_vars = {}
+        self._user_cls = None
 
     def add_pages(self, *pages, do_copy=False, blueprint=None, endpoint=None):
         """
@@ -314,7 +317,120 @@ class Website(_App):
             e = time.time()
             debug(f"TIME: {e - s}s")
 
+    def create_user_database(self, database_uri):
+        """
+        Connects to a database that has data specific to each user.
+
+        The database is a table that contains the following columns: `username`, `password`, and `id`.
+
+        Parameters
+        ----------
+        database_uri
+
+        Returns
+        -------
+
+        """
+        self.flask_app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+        self._db = SQLAlchemy(self.flask_app)
+        self._login_manager = LoginManager(self.flask_app)
+        self._load_user = self._login_manager.user_loader(self._load_user)
+        class User(UserMixin, self._db.Model):
+            __tablename__ = "user"
+
+            id = self._db.Column(self._db.Integer, primary_key=True)
+            username = self._db.Column(self._db.String(80), unique=True, nullable=False)
+            password = self._db.Column(self._db.String(300), nullable=False, unique=True)
+
+            def __repr__(self):
+                return f'<User {self.username}>'
+        self._user_cls = User
+        with self.flask_app.app_context():
+            self._db.create_all()
+
+    def _load_user(self, user_id):
+        return self._user_cls.get(int(user_id))
+
     # Website-specific methods
+    def get_request(self):
+        """
+        Gets data sent from client using HTTP request.
+
+        This method returns the `request` object of `Flask`. The `request` object has some useful attributes such as
+        `request.files` which retrieves uploaded files.
+
+        Examples
+        --------
+        To use this method, first create the app and a page:
+
+        >>> app = Website(__name__, secret_key="some key")
+        >>> home_page = Page(html_str=\"\"\"<form method="post" enctype="multipart/form-data">
+        ...                              <input type="file" name="filename">
+        ...                              <input type="submit">
+        ...                              </form>\"\"\", url="/")
+
+        Then create a function that will be called when an HTTP request is made:
+
+        >>> def request_function():
+        ...     request = app.get_request()
+        ...     print(request.files)
+
+        Now add the function to `Page.on_url_request()` method:
+
+        >>> home_page.on_url_request(request_function)
+
+        Add the page to the app and run the app:
+
+        >>> app.add_pages(home_page)
+        >>> if __name__ == "__main__":
+        ...     app.run() # doctest: +SKIP
+
+        Returns
+        -------
+        flask.request
+
+        See Also
+        --------
+        flask.request
+            https://flask.palletsprojects.com/en/2.2.x/api/#flask.request
+
+        Page.on_url_request
+
+        """
+        return request
+
+    def signup_user(self, username, password):
+        if self._user_cls is None:
+            raise Exception("You have not created the user database yet.")
+        if self.username_exists(username):
+            return
+        new_user = self._user_cls(username=username, password=password)
+        self._db.session.add(new_user)
+        self._db.session.commit()
+        login_user(new_user)
+
+    def signin_user(self, username, password):
+        if self._user_cls is None:
+            raise Exception("You have not created the user database yet.")
+        user = self._user_cls.query.filter_by(username=username, password=password).first()
+        if user:
+            login_user(user)
+
+    def signout_user(self):
+        logout_user()
+
+    def username_exists(self, username):
+        if self._user_cls is None:
+            raise Exception("You have not created the user database yet.")
+        if self._user_cls.query.filter_by(username=username).first():
+            info("User exists")
+            return True
+        else:
+            return False
+
+    def get_current_user(self):
+        return current_user
+
     def set_restriction(self, username, password):
         """
         Makes the app private.
@@ -356,7 +472,6 @@ class Website(_App):
 
         """
         self._validate_ws = func
-
 
     def set_data_validation(self, func):
         """
