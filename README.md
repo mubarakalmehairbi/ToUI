@@ -83,4 +83,4 @@ Copyrights (c) 2023 Mubarak Almehairbi.
 This package is licensed under the MIT license.
 
 # Documentation
-You can find the documentation in this link: [ToUI docs](https://toui.readthedocs.io)
+You can find the documentation in this link: [ToUI docs](https://toui.readthedocs.io).
