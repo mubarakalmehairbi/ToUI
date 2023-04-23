@@ -110,6 +110,11 @@ class File:
     size
         Size of the file.
 
+    content: str or None
+        Content of the file. If the parameter `with_contents` in the method `Element.get_files` was set as ``True``,
+        you will be able to access the content using this attribute. Otherwise, the value of this attribute will be
+        ``None``.
+
     last_modified
         The last modified date as the number of milliseconds since the Unix epoch (January 1, 1970 at midnight).
 
@@ -126,7 +131,10 @@ class File:
         self._file_dict = file_dict
         self.name = self._file_dict['name']
         self.size = self._file_dict['size']
-        self.type = self._file_dict['type']
+        self.type = self._file_dict['file-type']
+        self.content = None
+        if "content" in self._file_dict:
+            self.content = self._file_dict['content']
         self.last_modified = self._file_dict['last-modified']
         self._ws = ws
         self._id = file_id
