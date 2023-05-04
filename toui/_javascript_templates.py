@@ -17,7 +17,7 @@ async function _toPy(...arguments) {{
                 func:func,
                 args: arguments,
                 url: urlPath}}
-    var properties = _manageProperties()
+    _manageProperties()
     json['html'] = _getDoc()
     var jsonstring = JSON.stringify(json)
     if (socket.readyState === 0) {{
@@ -41,7 +41,7 @@ function _toPy(...arguments) {{
     var json = {{type: "page",
                 func: func,
                 args: arguments}}
-    json['properties'] = _manageProperties()
+    _manageProperties()
     json['html'] = _getDoc()
     var jsonstring = JSON.stringify(json)
     pywebview.api.communicate(jsonstring)
@@ -90,7 +90,7 @@ async function _getFiles(kwargs) {{
             var selector = _getElementSelector(element)
             var fileJSON = {{name: file.name,
                              size: file.size,
-                             type: file.type,
+                             'file-type': file.type,
                              'last-modified': file.lastModified,
                              selector: selector}}
             if (kwargs['with_content'] == true) {{

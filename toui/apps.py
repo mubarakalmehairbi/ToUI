@@ -2,7 +2,7 @@
 A module that creates web apps and desktop apps.
 """
 import __main__
-from flask import Flask, session, request
+from flask import Flask, session, request, send_file
 from flask_sock import Sock
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
@@ -161,8 +161,9 @@ class Website(_App):
         self._socket = Sock(self.flask_app)
         self.pages = []
         self._socket.route("/toui-communicate")(self._communicate)
+        self.flask_app.route("/toui-download")(self._download)
 
-        self.forbidden_urls = ['/toui-communicate']
+        self.forbidden_urls = ['/toui-communicate', "/toui-download"]
         self._validate_ws = validate_ws
         self._validate_data = validate_data
         self._auth = None
@@ -203,11 +204,13 @@ class Website(_App):
             if self._auth:
                 view_func = self._auth.required(view_func)
             if not endpoint:
-                endpoint = str(id(page))
-            if blueprint:
-                route = blueprint.route(page.url, methods=['GET', 'POST'], endpoint=endpoint)(view_func)
+                endpoint_ = str(id(page))
             else:
-                route = self.flask_app.route(page.url, methods=['GET', 'POST'], endpoint=endpoint)(view_func)
+                endpoint_ = endpoint
+            if blueprint:
+                route = blueprint.route(page.url, methods=['GET', 'POST'], endpoint=endpoint_)(view_func)
+            else:
+                route = self.flask_app.route(page.url, methods=['GET', 'POST'], endpoint=endpoint_)(view_func)
             for func in page._functions.values():
                 self._add_functions(func)
 
@@ -282,6 +285,8 @@ class Website(_App):
             session['variables'] = self._default_vars
         if not "user page" in session.keys():
             session['user page'] = None
+        if not "toui-download" in session.keys():
+            session['toui-download'] = None
         return True
 
     def _communicate(self, ws):
@@ -316,6 +321,19 @@ class Website(_App):
             del session['user page']
             e = time.time()
             debug(f"TIME: {e - s}s")
+
+    def _download(self):
+        debug(session.keys())
+        file_to_download = session['toui-download']
+        debug(f"File to download: {session['toui-download']}")
+        if file_to_download:
+            return send_file(file_to_download, as_attachment=True)
+
+    def download(self, filepath):
+        session['toui-download'] = filepath
+        debug(session.keys())
+        debug(session['toui-download'])
+        self.open_new_page("/toui-download")
 
     def create_user_database(self, database_uri):
         """
@@ -352,7 +370,8 @@ class Website(_App):
         return self._user_cls.get(int(user_id))
 
     # Website-specific methods
-    def get_request(self):
+    @staticmethod
+    def get_request(f):
         """
         Gets data sent from client using HTTP request.
 
@@ -428,7 +447,8 @@ class Website(_App):
         else:
             return False
 
-    def get_current_user(self):
+    @staticmethod
+    def get_current_user():
         return current_user
 
     def set_restriction(self, username, password):
@@ -482,29 +502,9 @@ class Website(_App):
         should have one argument `data` and should either return ``True`` or ``False``.
         If the function returns ``False``, the data will not be used by ToUI.
 
-        Currently, there are two types of JSON objects that ToUI receives.
-        One of the JSON objects contains the following keys:
-
-        {type: 'page',
-         func: ...,
-         args: ...,
-         url: ...,
-         html: ...}
-
-        `type` is the type of JSON object, and it always has the value 'page' when JavaScript sends the HTML document
-        as data. `func` contains the name of the Python function that should be called, `args` are the
-        arguments of this function, `url` is the URL of the HTML page that sent the data, 'html'
-        is the HTML document itself as a string.
-
-        Another type of JSON object is a JSON that contains uploaded files:
-
-        {type: 'files',
-         files: ...}
-
-        You can get the uploaded files using the method `Element.get_files()`.
-
-        However, note that the structures of the JSON objects might change in future versions of
-        ToUI.
+        You can check the structures of the data received from JavaScript in
+        https://toui.readthedocs.io/en/latest/how_it_works.html#instructions-sent-and-received.
+        Note that the structures of the JSON objects might change in future versions of ToUI.
 
         Parameters
         ----------
