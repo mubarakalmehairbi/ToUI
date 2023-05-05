@@ -6,6 +6,7 @@ from flask import Flask, session, request, send_file
 from flask_sock import Sock
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
+from flask_basicauth import BasicAuth
 import webview
 import json
 import inspect
@@ -13,7 +14,6 @@ import time
 import os
 from copy import copy
 from abc import ABCMeta, abstractmethod
-from flask_basicauth import BasicAuth
 from toui._helpers import warn, info, debug, error
 from toui.pages import Page
 from toui.exceptions import ToUIWrongPlaceException
@@ -158,10 +158,10 @@ class Website(_App):
             warn("No secret key was set. Generating a random secret key for Flask.")
             secret_key = os.urandom(50)
         self.flask_app.secret_key = secret_key
-        self._socket = Sock(self.flask_app)
         self.pages = []
+        self._socket = Sock(self.flask_app)
         self._socket.route("/toui-communicate")(self._communicate)
-        self.flask_app.route("/toui-download")(self._download)
+        self.flask_app.route("/toui-download", methods=['POST', 'GET'])(self._download)
 
         self.forbidden_urls = ['/toui-communicate', "/toui-download"]
         self._validate_ws = validate_ws
@@ -282,7 +282,8 @@ class Website(_App):
         except RuntimeError as e:
             return False
         if not "variables" in session.keys():
-            session['variables'] = self._default_vars
+            debug(f"CREATING SESSION VARIABLES. DEFAULT={self._default_vars}")
+            session['variables'] = self._default_vars.copy()
         if not "user page" in session.keys():
             session['user page'] = None
         if not "toui-download" in session.keys():
@@ -302,7 +303,6 @@ class Website(_App):
             if not data_validation:
                 info("Data validation returns `False`. The data will not be used.")
                 continue
-            debug(data_from_js)
             s = time.time()
             self._session_check()
             data_dict = json.loads(data_from_js)
@@ -333,7 +333,7 @@ class Website(_App):
         session['toui-download'] = filepath
         debug(session.keys())
         debug(session['toui-download'])
-        self.open_new_page("/toui-download")
+        #self.open_new_page("/toui-download")
 
     def create_user_database(self, database_uri):
         """
@@ -371,7 +371,7 @@ class Website(_App):
 
     # Website-specific methods
     @staticmethod
-    def get_request(f):
+    def get_request():
         """
         Gets data sent from client using HTTP request.
 
