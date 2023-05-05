@@ -249,7 +249,12 @@ function _addScript(kwargs) {{
     
 function _goTo(kwargs) {{
     const url = kwargs['url']
-    location.href = location.origin + url
+    const newTab = kwargs['new']
+    if (newTab == true) {{
+        window.open(location.origin + url)
+    }} else {{
+        window.open(location.origin + url, "_self")
+    }}
 }}
 
 function _resizeEmbed(element) {{

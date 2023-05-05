@@ -7,8 +7,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 import sys
 import os
-from toui import __version__
 sys.path.insert(0,os.path.abspath('..'))
+from toui import __version__
 
 project = 'ToUI'
 copyright = '2023, Mubarak Almehairbi'

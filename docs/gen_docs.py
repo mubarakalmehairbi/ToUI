@@ -1,6 +1,8 @@
 import glob
 import os
 import subprocess
+import sys
+sys.path.append("..")
 from toui import Website, DesktopApp, Page, Element, IFrameElement,\
     ToUIBlueprint, quick_website, quick_desktop_app, __version__
 from toui._signals import File

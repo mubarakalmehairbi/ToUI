@@ -51,7 +51,7 @@ class _PageSignal(Signal):
     def _open_another_page(**kwargs):
         js_func = "_goTo"
         js_args = []
-        js_kwargs = {"url": kwargs['url']}
+        js_kwargs = {"url": kwargs['url'], "new": kwargs['new']}
         return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
 
 
@@ -471,7 +471,7 @@ class Page:
         return data_from_js
 
     @_PageSignal()
-    def _open_another_page(self, url):
+    def _open_another_page(self, url, new):
         return
 
 

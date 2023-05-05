@@ -4,6 +4,7 @@ A module that creates web apps and desktop apps.
 import __main__
 from flask import Flask, session, request, send_file
 from flask_sock import Sock
+from flask_caching import Cache
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_basicauth import BasicAuth
@@ -39,7 +40,7 @@ class _App(metaclass=ABCMeta):
     def add_pages(self): pass
 
     @abstractmethod
-    def open_new_page(self, url): pass
+    def open_new_page(self, url, new=False): pass
 
     @abstractmethod
     def get_user_page(self): pass
@@ -85,11 +86,29 @@ class _FuncWithPage:
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
-        
+
+class _UserVars:
+
+    def __init__(self, cache) -> None:
+        self._cache = cache
+        self._cache.set('toui-vars', {})
+
+    def __getitem__(self, key):
+        return self._cache.get('toui-vars')[key]
+    
+    def __setitem__(self, key, value):
+        toui_vars = self._cache.get('toui-vars')
+        toui_vars[key] = value
+        return self._cache.set('toui-vars', toui_vars)
+    
+    def __repr__(self) -> str:
+        return repr(self._cache.get('toui-vars'))
+    
+
 class Website(_App):
     """
     A class that creates a web application from HTML files.
-
+        
     Attributes
     ----------
     flask_app: Flask
@@ -99,7 +118,8 @@ class Website(_App):
         These are URLs that ToUI does not allow the user to use because ToUI uses them.
 
     user_vars: dict
-        A dictionary that stores data unique to each user. The data are stored in a `flask` `session` object.
+        A dictionary that stores data unique to each user. The data are stored in a `Cache` object from `flask-caching`
+        package.
 
     pages: list
         A list of added `Page` objects.
@@ -144,6 +164,20 @@ class Website(_App):
         secret_key: str (optional)
             Sets the `secret_key` attribute for `flask.Flask`
 
+
+        .. admonition:: Behind The Scenes
+            :class: tip
+            
+            ToUI uses `Flask` and its extenstions to create web apps. When creating an instance of `Website`, the following
+            extensions are used:
+
+            - `Sock` class extension from `Flask-Sock` package.
+            - `Cache` class extension from `Flask-Cache` package.
+
+            The following `Flask` configurations are also set:
+
+            - `CACHE_TYPE = "SimpleCache"`
+
         """
         self._functions = {}
         if not name:
@@ -161,9 +195,12 @@ class Website(_App):
         self.pages = []
         self._socket = Sock(self.flask_app)
         self._socket.route("/toui-communicate")(self._communicate)
-        self.flask_app.route("/toui-download", methods=['POST', 'GET'])(self._download)
+        self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
+        self.flask_app.config["CACHE_TYPE"] = "SimpleCache" # better not use this type w. gunicorn
+        self._cache = Cache(self.flask_app)
+        self._user_vars = _UserVars(self._cache)
 
-        self.forbidden_urls = ['/toui-communicate', "/toui-download"]
+        self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>"]
         self._validate_ws = validate_ws
         self._validate_data = validate_data
         self._auth = None
@@ -214,7 +251,7 @@ class Website(_App):
             for func in page._functions.values():
                 self._add_functions(func)
 
-    def open_new_page(self, url):
+    def open_new_page(self, url, new=False):
         """
         Redirects to another URL.
 
@@ -232,7 +269,7 @@ class Website(_App):
         """
         try:
             session.keys()
-            self.get_user_page()._open_another_page(url)
+            self.get_user_page()._open_another_page(url, new=new)
         except RuntimeError:
             raise ToUIWrongPlaceException(f"The function `{inspect.currentframe().f_code.co_name}` should only be called after the app runs.")
 
@@ -269,11 +306,7 @@ class Website(_App):
 
     @property
     def user_vars(self):
-        session_exists = self._session_check()
-        if session_exists:
-            return session['variables']
-        else:
-            return self._default_vars
+        return self._user_vars
 
     def _session_check(self):
         """This is a private function."""
@@ -322,20 +355,21 @@ class Website(_App):
             e = time.time()
             debug(f"TIME: {e - s}s")
 
-    def _download(self):
-        debug(session.keys())
-        file_to_download = session['toui-download']
-        debug(f"File to download: {session['toui-download']}")
+    def _download(self, path_id):
+        debug(f"PATH: {path_id}")
+        file_to_download = self._cache.get(f'toui-download-{path_id}')
+        debug(f"File to download: {file_to_download}")
         if file_to_download:
             return send_file(file_to_download, as_attachment=True)
 
     def download(self, filepath):
-        session['toui-download'] = filepath
-        debug(session.keys())
-        debug(session['toui-download'])
-        #self.open_new_page("/toui-download")
+        path_id = 0
+        while self._cache.get(f'toui-download-{path_id}'):
+            path_id += 1
+        self._cache.set(f'toui-download-{path_id}', filepath)
+        self.open_new_page(f"/toui-download-{path_id}", new=True)
 
-    def create_user_database(self, database_uri):
+    def add_user_database(self, database_uri):
         """
         Connects to a database that has data specific to each user.
 
@@ -451,7 +485,7 @@ class Website(_App):
     def get_current_user():
         return current_user
 
-    def set_restriction(self, username, password):
+    def add_restriction(self, username, password):
         """
         Makes the app private.
 
@@ -462,6 +496,19 @@ class Website(_App):
         username: str
 
         password: str
+
+
+        .. admonition:: Behind The Scenes
+            :class: tip
+            
+            When calling this method, the following `Flask` extension is used:
+
+            - `BasicAuth` class extension from `Flask-BasicAuth` package.
+
+            The following `Flask` configurations are also set:
+
+            - `BASIC_AUTH_USERNAME = username`
+            - `BASIC_AUTH_PASSWORD = password`
 
         """
         self._auth = BasicAuth(self.flask_app)
@@ -630,7 +677,7 @@ class DesktopApp(_App):
             for func in page._functions.values():
                 self._add_functions(func)
 
-    def open_new_page(self, url):
+    def open_new_page(self, url, new=False):
         """
         Opens a new window that has the specified URL.
 
