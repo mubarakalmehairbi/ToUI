@@ -36,15 +36,25 @@ function _send(jsonstring) {{
     
     
 desktop_template = f"""
+alert()
+const urlPath = location.pathname
 function _toPy(...arguments) {{
     var func = arguments.shift()
     var json = {{type: "page",
                 func: func,
-                args: arguments}}
+                args: arguments,
+                url: urlPath}}
     _manageProperties()
     json['html'] = _getDoc()
     var jsonstring = JSON.stringify(json)
-    pywebview.api.communicate(jsonstring)
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', location.origin + "/toui-communicate", true);
+    xhr.onreadystatechange = function() {{
+    if (xhr.readyState === 4 && xhr.status === 200) {{
+        _findAndExecute(xhr.responseText)
+    }}
+    }};
+    xhr.send(jsonstring);
 }}
 
 function _send(jsonstring) {{

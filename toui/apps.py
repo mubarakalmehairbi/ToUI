@@ -24,189 +24,6 @@ from toui._defaults import validate_ws, validate_data
 class _App(metaclass=ABCMeta):
     """The base class for DesktopApp and Website"""
 
-    def _add_function(self, func):
-        name = func.__name__
-        if not callable(func):
-            warn(f"Variable '{name}' is not a function.")
-            return
-        if name.startswith("_"):
-            warn(f"Function '{name}' starts with '_'. It is safer to avoid functions that starts with '_'"
-                 f"because they might overlap with functions used by the package.")
-        if self._func_exists(name):
-            warn(f"Function '{name}' exists.")
-        self._functions[name] = func
-
-    @abstractmethod
-    def add_pages(self): pass
-
-    @abstractmethod
-    def open_new_page(self, url, new=False): pass
-
-    @abstractmethod
-    def get_user_page(self): pass
-
-    @abstractmethod
-    def user_vars(self): pass
-
-    @abstractmethod
-    def _communicate(self): pass
-
-    @abstractmethod
-    def run(self): pass
-
-    def _add_functions(self, *functions):
-        for func in functions:
-            self._add_function(func)
-
-    def _get_functions(self):
-        """Gets all added functions in this class. This is a private function."""
-        return self._functions
-
-    def _func_exists(self, func_name: str):
-        """Checks if a function exists. This is a private function."""
-        if func_name in self._get_functions().keys():
-            return True
-        else:
-            return False
-
-    def _call_func(self, func_name, *args, page=None):
-        """Calls a function in this class. Its return value depends on the function called. This is a private function."""
-        functions = self._get_functions()
-        info(f'"{func_name}" called')
-        if page:
-            func = _FuncWithPage(functions[func_name], page)
-            return func(*args)
-        return functions[func_name](*args)
-
-
-class _FuncWithPage:
-    def __init__(self, func, page):
-        self.func = func
-        self.page = page
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-
-class _UserVars:
-
-    def __init__(self, cache) -> None:
-        self._cache = cache
-        self._cache.set('toui-vars', {})
-
-    def __getitem__(self, key):
-        return self._cache.get('toui-vars')[key]
-    
-    def __setitem__(self, key, value):
-        toui_vars = self._cache.get('toui-vars')
-        toui_vars[key] = value
-        return self._cache.set('toui-vars', toui_vars)
-    
-    def __repr__(self) -> str:
-        return repr(self._cache.get('toui-vars'))
-    
-
-class Website(_App):
-    """
-    A class that creates a web application from HTML files.
-        
-    Attributes
-    ----------
-    flask_app: Flask
-        ToUI creates web applications using `Flask`. You can access the `Flask` object using the attribute `flask_app`.
-
-    forbidden_urls: list
-        These are URLs that ToUI does not allow the user to use because ToUI uses them.
-
-    user_vars: dict
-        A dictionary that stores data unique to each user. The data are stored in a `Cache` object from `flask-caching`
-        package.
-
-    pages: list
-        A list of added `Page` objects.
-
-    Examples
-    --------
-
-    Creating a web app:
-
-    >>> from toui import Website
-    >>> app = Website(__name__, secret_key="some key")
-
-    Creating a page and adding it to the app:
-
-    >>> from toui import Page
-    >>> home_page = Page(html_str="<h1>This is the home page</h1>")
-    >>> app.add_pages(home_page)
-
-    Running the app:
-
-    >>> if __name__ == "__main__":
-    ...     app.run(debug=True) # doctest: +SKIP
-
-    See Also
-    --------
-    :py:class:`toui.pages.Page`
-    :py:class:`DesktopApp`
-
-    """
-    
-    def __init__(self, name=None, assets_folder=None, secret_key=None):
-        """
-
-        Parameters
-        ----------
-        name: str (optional)
-            The name of the app.
-
-        assets_folder: str (optional)
-            The path to the folder that contains the HTML files and other assets.
-
-        secret_key: str (optional)
-            Sets the `secret_key` attribute for `flask.Flask`
-
-
-        .. admonition:: Behind The Scenes
-            :class: tip
-            
-            ToUI uses `Flask` and its extenstions to create web apps. When creating an instance of `Website`, the following
-            extensions are used:
-
-            - `Sock` class extension from `Flask-Sock` package.
-            - `Cache` class extension from `Flask-Cache` package.
-
-            The following `Flask` configurations are also set:
-
-            - `CACHE_TYPE = "SimpleCache"`
-
-        """
-        self._functions = {}
-        if not name:
-            if hasattr(__main__, "__file__"):
-                name = os.path.basename(__main__.__file__).split(".")[0]
-            else:
-                name = "app"
-        if not assets_folder:
-            assets_folder = "/"
-        self.flask_app = Flask(name, static_folder=assets_folder, static_url_path="/")
-        if secret_key is None:
-            warn("No secret key was set. Generating a random secret key for Flask.")
-            secret_key = os.urandom(50)
-        self.flask_app.secret_key = secret_key
-        self.pages = []
-        self._socket = Sock(self.flask_app)
-        self._socket.route("/toui-communicate")(self._communicate)
-        self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
-        self.flask_app.config["CACHE_TYPE"] = "SimpleCache" # better not use this type w. gunicorn
-        self._cache = Cache(self.flask_app)
-        self._user_vars = _UserVars(self._cache)
-
-        self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>"]
-        self._validate_ws = validate_ws
-        self._validate_data = validate_data
-        self._auth = None
-        self._default_vars = {}
-        self._user_cls = None
-
     def add_pages(self, *pages, do_copy=False, blueprint=None, endpoint=None):
         """
         Adds pages to the app.
@@ -290,19 +107,17 @@ class Website(_App):
         except RuntimeError as e:
             raise ToUIWrongPlaceException(f"The function `{inspect.currentframe().f_code.co_name}` should only be called after the app runs.")
 
-    def run(self, *args, **kwargs):
-        """
-        Runs the app. It calls the function `flask.Flask.run`. The arguments will be passed to
-        `flask.Flask.run` function.
-
-        Parameters
-        ----------
-        args: Any
-
-        kwargs: Any
-
-        """
-        self.flask_app.run(*args, **kwargs)
+    def _add_function(self, func):
+        name = func.__name__
+        if not callable(func):
+            warn(f"Variable '{name}' is not a function.")
+            return
+        if name.startswith("_"):
+            warn(f"Function '{name}' starts with '_'. It is safer to avoid functions that starts with '_'"
+                 f"because they might overlap with functions used by the package.")
+        if self._func_exists(name):
+            warn(f"Function '{name}' exists.")
+        self._functions[name] = func
 
     @property
     def user_vars(self):
@@ -314,47 +129,10 @@ class Website(_App):
             session.keys()
         except RuntimeError as e:
             return False
-        if not "variables" in session.keys():
-            debug(f"CREATING SESSION VARIABLES. DEFAULT={self._default_vars}")
-            session['variables'] = self._default_vars.copy()
         if not "user page" in session.keys():
             session['user page'] = None
-        if not "toui-download" in session.keys():
-            session['toui-download'] = None
         return True
-
-    def _communicate(self, ws):
-        """This is a private function."""
-        validation = self._validate_ws(ws)
-        if not validation:
-            info("WebSocket validation returns `False`. No data should be sent or received.")
-            return
-        info(f'WebSocket connected: {ws.connected}')
-        while True:
-            data_from_js = ws.receive()
-            data_validation = self._validate_data(data_from_js)
-            if not data_validation:
-                info("Data validation returns `False`. The data will not be used.")
-                continue
-            s = time.time()
-            self._session_check()
-            data_dict = json.loads(data_from_js)
-            func = data_dict['func']
-            args = data_dict['args']
-            url = data_dict['url']
-            new_html = data_dict['html']
-            new_page = Page(url=url)
-            new_page.from_str(new_html)
-            new_page._app = self
-            new_page._signal_mode = True
-            new_page._ws = ws
-            session['user page'] = new_page
-            if self._func_exists(func):
-                self._call_func(func, *args)
-            del session['user page']
-            e = time.time()
-            debug(f"TIME: {e - s}s")
-
+    
     def _download(self, path_id):
         debug(f"PATH: {path_id}")
         file_to_download = self._cache.get(f'toui-download-{path_id}')
@@ -585,6 +363,211 @@ class Website(_App):
         """
         self.add_pages(*blueprint.pages, blueprint=blueprint)
         self.flask_app.register_blueprint(blueprint=blueprint, **options)
+
+    @abstractmethod
+    def _communicate(self): pass
+
+    @abstractmethod
+    def run(self): pass
+
+    def _add_functions(self, *functions):
+        for func in functions:
+            self._add_function(func)
+
+    def _get_functions(self):
+        """Gets all added functions in this class. This is a private function."""
+        return self._functions
+
+    def _func_exists(self, func_name: str):
+        """Checks if a function exists. This is a private function."""
+        if func_name in self._get_functions().keys():
+            return True
+        else:
+            return False
+
+    def _call_func(self, func_name, *args, page=None):
+        """Calls a function in this class. Its return value depends on the function called. This is a private function."""
+        functions = self._get_functions()
+        info(f'"{func_name}" called')
+        if page:
+            func = _FuncWithPage(functions[func_name], page)
+            return func(*args)
+        return functions[func_name](*args)
+
+
+class _FuncWithPage:
+    def __init__(self, func, page):
+        self.func = func
+        self.page = page
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+
+class _UserVars:
+
+    def __init__(self, cache) -> None:
+        self._cache = cache
+        self._cache.set('toui-vars', {})
+
+    def __getitem__(self, key):
+        return self._cache.get('toui-vars')[key]
+    
+    def __setitem__(self, key, value):
+        toui_vars = self._cache.get('toui-vars')
+        toui_vars[key] = value
+        return self._cache.set('toui-vars', toui_vars)
+    
+    def __repr__(self) -> str:
+        return repr(self._cache.get('toui-vars'))
+    
+
+class Website(_App):
+    """
+    A class that creates a web application from HTML files.
+        
+    Attributes
+    ----------
+    flask_app: Flask
+        ToUI creates web applications using `Flask`. You can access the `Flask` object using the attribute `flask_app`.
+
+    forbidden_urls: list
+        These are URLs that ToUI does not allow the user to use because ToUI uses them.
+
+    user_vars: dict
+        A dictionary that stores data unique to each user. The data are stored in a `Cache` object from `flask-caching`
+        package.
+
+    pages: list
+        A list of added `Page` objects.
+
+    Examples
+    --------
+
+    Creating a web app:
+
+    >>> from toui import Website
+    >>> app = Website(__name__, secret_key="some key")
+
+    Creating a page and adding it to the app:
+
+    >>> from toui import Page
+    >>> home_page = Page(html_str="<h1>This is the home page</h1>")
+    >>> app.add_pages(home_page)
+
+    Running the app:
+
+    >>> if __name__ == "__main__":
+    ...     app.run(debug=True) # doctest: +SKIP
+
+    See Also
+    --------
+    :py:class:`toui.pages.Page`
+    :py:class:`DesktopApp`
+
+    """
+    
+    def __init__(self, name=None, assets_folder=None, secret_key=None):
+        """
+
+        Parameters
+        ----------
+        name: str (optional)
+            The name of the app.
+
+        assets_folder: str (optional)
+            The path to the folder that contains the HTML files and other assets.
+
+        secret_key: str (optional)
+            Sets the `secret_key` attribute for `flask.Flask`
+
+
+        .. admonition:: Behind The Scenes
+            :class: tip
+            
+            ToUI uses `Flask` and its extenstions to create web apps. When creating an instance of `Website`, the following
+            extensions are used:
+
+            - `Sock` class extension from `Flask-Sock` package.
+            - `Cache` class extension from `Flask-Cache` package.
+
+            The following `Flask` configurations are also set:
+
+            - `CACHE_TYPE = "SimpleCache"`
+
+        """
+        self._functions = {}
+        if not name:
+            if hasattr(__main__, "__file__"):
+                name = os.path.basename(__main__.__file__).split(".")[0]
+            else:
+                name = "app"
+        if not assets_folder:
+            assets_folder = "/"
+        self.flask_app = Flask(name, static_folder=assets_folder, static_url_path="/")
+        if secret_key is None:
+            warn("No secret key was set. Generating a random secret key for Flask.")
+            secret_key = os.urandom(50)
+        self.flask_app.secret_key = secret_key
+        self.pages = []
+        self._socket = Sock(self.flask_app)
+        self._socket.route("/toui-communicate")(self._communicate)
+        self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
+        self.flask_app.config["CACHE_TYPE"] = "SimpleCache" # better not use this type w. gunicorn
+        self._cache = Cache(self.flask_app)
+        self._user_vars = _UserVars(self._cache)
+
+        self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>"]
+        self._validate_ws = validate_ws
+        self._validate_data = validate_data
+        self._auth = None
+        self._default_vars = {}
+        self._user_cls = None
+
+    def run(self, *args, **kwargs):
+        """
+        Runs the app. It calls the function `flask.Flask.run`. The arguments will be passed to
+        `flask.Flask.run` function.
+
+        Parameters
+        ----------
+        args: Any
+
+        kwargs: Any
+
+        """
+        self.flask_app.run(*args, **kwargs)
+
+    def _communicate(self, ws):
+        """This is a private function."""
+        validation = self._validate_ws(ws)
+        if not validation:
+            info("WebSocket validation returns `False`. No data should be sent or received.")
+            return
+        info(f'WebSocket connected: {ws.connected}')
+        while True:
+            data_from_js = ws.receive()
+            data_validation = self._validate_data(data_from_js)
+            if not data_validation:
+                info("Data validation returns `False`. The data will not be used.")
+                continue
+            s = time.time()
+            self._session_check()
+            data_dict = json.loads(data_from_js)
+            func = data_dict['func']
+            args = data_dict['args']
+            url = data_dict['url']
+            new_html = data_dict['html']
+            new_page = Page(url=url)
+            new_page.from_str(new_html)
+            new_page._app = self
+            new_page._signal_mode = True
+            new_page._ws = ws
+            session['user page'] = new_page
+            if self._func_exists(func):
+                self._call_func(func, *args)
+            del session['user page']
+            e = time.time()
+            debug(f"TIME: {e - s}s")
 
 
 class _DesktopAppApi:
