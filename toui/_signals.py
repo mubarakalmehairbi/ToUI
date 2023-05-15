@@ -13,9 +13,10 @@ class Signal:
     included_private_methods = ["_open_another_page"]
     no_return_functions = []
 
-    def __init__(self, return_type=None):
+    def __init__(self, return_type=None, app_types=['Website', 'DesktopApp']):
         self.ws = None
         self.return_type = return_type
+        self.app_types = app_types
 
     def __call__(decorator, func):
         decorator._func = func
@@ -26,13 +27,11 @@ class Signal:
                 original_copy = copy(self)
             value = decorator._func(self, *args, **kwargs)
             real_output = value
-            if self._signal_mode:
+            if self._signal_mode and self._app.__class__.__name__ in decorator.app_types:
                 if self.__class__.__name__ == 'Element':
                     decorator.ws = self._parent_page.__dict__.get("_ws")
-                    decorator.evaluate_js = self._parent_page._evaluate_js
                 elif self.__class__.__name__ == "Page":
                     decorator.ws = self.__dict__.get("_ws")
-                    decorator.evaluate_js = self._evaluate_js
                 kwargs = inspect.signature(decorator._func).bind(self, *args, **kwargs)
                 kwargs.apply_defaults()
                 kwargs = kwargs.arguments
@@ -59,38 +58,23 @@ class Signal:
                     return
 
     def _send(self, signal):
-        if self.ws:
-            self.ws.send(json.dumps(signal))
-            debug(f"SENT: {signal}")
-            if self.return_type == "js":
-                data_from_js = self.ws.receive()
-                debug(f"DATA RECEIVED")
-                data_validation = self.object._app._validate_data(data_from_js)
-                if not data_validation:
-                    info("Data validation returns `False`. The data will not be used.")
-                    return
-                data_dict = json.loads(data_from_js)
-                debug(f"RECEIVED DATA KEYS: {list(data_dict.keys())}")
-                if data_dict['type'] == "files":
-                    files = []
-                    for file_dict in data_dict['data']:
-                        files.append(File(file_dict, signal, self.object._app, file_dict['file-id'], ws=self.ws))
-                    return files
-                return data_dict['data']
-        else:
-            out = self.evaluate_js(func=signal['func'], kwargs=signal['kwargs'])
-            debug(f"SENT: {signal}")
-            if self.return_type == "js":
-                try:
-                    data_dict = json.loads(out)
-                    debug(f"DATA RECEIVED")
-                    if data_dict['type'] == "files":
-                        files = []
-                        for file_dict in data_dict['data']:
-                            files.append(File(file_dict, signal, self.object._app, file_dict['file-id'], ws=None))
-                        return files
-                except: data_dict = {"data": None}
-                return data_dict['data']
+        self.ws.send(json.dumps(signal))
+        debug(f"SENT: {signal}")
+        if self.return_type == "js":
+            data_from_js = self.ws.receive()
+            debug(f"DATA RECEIVED")
+            data_validation = self.object._app._validate_data(data_from_js)
+            if not data_validation:
+                info("Data validation returns `False`. The data will not be used.")
+                return
+            data_dict = json.loads(data_from_js)
+            debug(f"RECEIVED DATA KEYS: {list(data_dict.keys())}")
+            if data_dict['type'] == "files":
+                files = []
+                for file_dict in data_dict['data']:
+                    files.append(File(file_dict, signal, self.object._app, file_dict['file-id'], ws=self.ws))
+                return files
+            return data_dict['data']
 
 
 class File:
@@ -149,34 +133,21 @@ class File:
         js_kwargs['file-id'] = self._id
         js_kwargs['binary'] = self.is_binary
         signal = {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
-        if self._ws:
-            self._ws.send(json.dumps(signal))
-            debug(f"SENT: {signal}")
-            while True:
-                data_from_js = self._ws.receive()
-                data_validation = self._app._validate_data(data_from_js)
-                if not data_validation:
-                    info("Data validation returns `False`. The data will not be used.")
-                    return
-                data_dict = json.loads(data_from_js)
-                data = data_dict['data']
-                if self.is_binary:
-                    data = bytearray(data)
-                yield data
-                if data_dict['end'] == True:
-                    break
-        else:
-            out = self._signal.evaluate_js(func=signal['func'], kwargs=signal['kwargs'])
-            debug(f"SENT: {signal}")
-            while True:
-                data_from_js = out
-                data_dict = json.loads(data_from_js)
-                data = data_dict['data']
-                if self.is_binary:
-                    data = bytearray(data)
-                yield data
-                if data_dict['end'] == True:
-                    break
+        self._ws.send(json.dumps(signal))
+        debug(f"SENT: {signal}")
+        while True:
+            data_from_js = self._ws.receive()
+            data_validation = self._app._validate_data(data_from_js)
+            if not data_validation:
+                info("Data validation returns `False`. The data will not be used.")
+                return
+            data_dict = json.loads(data_from_js)
+            data = data_dict['data']
+            if self.is_binary:
+                data = bytearray(data)
+            yield data
+            if data_dict['end'] == True:
+                break
 
     def __repr__(self):
         return f"<File {self.name}>"

@@ -1,4 +1,6 @@
 import unittest
+import sys
+sys.path.append("..")
 from toui import Page
 
 class MyTestCase(unittest.TestCase):

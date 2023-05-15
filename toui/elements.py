@@ -6,7 +6,7 @@ from bs4.element import Tag
 from copy import copy
 import tinycss
 from toui._signals import Signal
-from toui._helpers import warn, debug, selector_to_str
+from toui._helpers import warn, debug, selector_to_str, obj_converter
 
 
 class _ElementSignal(Signal):
@@ -635,7 +635,7 @@ class Element:
         if quotes:
             args = ",".join([f'"{arg}"' for arg in func_args])
         else:
-            args = ",".join([f'{arg}' for arg in func_args])
+            args = ",".join([f'{obj_converter(arg)}' for arg in func_args])
         if callable(func_or_name):
             name = func_or_name.__name__
             if self._parent_page:

@@ -6,10 +6,11 @@ import time
 from bs4 import BeautifulSoup
 import webview
 import json
+from flask import session
 from toui.elements import Element
 from toui._javascript_templates import custom_func, get_script
 from copy import copy
-from toui._helpers import warn, info, debug, selector_to_str
+from toui._helpers import warn, info, debug, selector_to_str, obj_converter
 from toui._signals import Signal
 from toui._defaults import view_func
 
@@ -64,9 +65,13 @@ class Page:
     url: str
         The URL of the page.
 
-    window: pywebview.Window, default = None
-        A `pywebview.Window` object. It is automatically created when adding the `Page` to
-        `DesktopApp` and running the app.
+    title: str
+        In desktop app, this attribute will be the title of the window.
+
+    window_defaults: dict
+        In desktop apps, this dictionary sets the default parameters of the window. To set a certain default parameter for
+        a window before creating it, include it in this dictionary. The parameters that can be set are the keyword arguments
+        of the class [`webview.create_window()`](https://pywebview.flowrl.com/guide/api.html) in pywebview package.
 
     Examples
     --------
@@ -103,7 +108,7 @@ class Page:
 
     """
 
-    def __init__(self, html_file=None, html_str=None, url=None):
+    def __init__(self, html_file=None, html_str=None, url=None, title=None):
         """
         Parameters
         ----------
@@ -115,6 +120,9 @@ class Page:
 
         url: str, optional
             If the page was used as a webpage, this will be the URL of the page.
+
+        title: str
+            In desktop app, this parameter will be the title of the window.
 
         """
         if html_file:
@@ -137,7 +145,8 @@ class Page:
         self.url = url
 
         # Other attributes
-        self.window = None
+        self.title = title
+        self.window_defaults = {}
 
         # Other internal attributes
         self._app = None
@@ -146,6 +155,7 @@ class Page:
         self._functions = {}
         self._basic_view_func = lambda: view_func(self)
         self._view_func = self._basic_view_func
+        self._uid = None
 
     def __str__(self):
         return self.to_str()
@@ -156,7 +166,6 @@ class Page:
     def __copy__(self):
         new_pg = Page(html_file=self._html_file, url=self.url)
         new_pg.from_bs4_soup(self.to_bs4_soup())
-        new_pg.window = copy(self.window)
         new_pg._signal_mode = self._signal_mode
         new_pg._app = self._app
         return new_pg
@@ -330,7 +339,7 @@ class Page:
             elements_list.append(element)
         return elements_list
 
-    def get_html_element(self):
+    def get_html_element(self) -> Element:
         """
         Gets the first ``<html>`` element.
 
@@ -346,7 +355,7 @@ class Page:
         if len(elements) > 0:
             return elements[0]
 
-    def get_body_element(self):
+    def get_body_element(self) -> Element:
         """
         Gets the first ``<body>`` element.
 
@@ -399,10 +408,17 @@ class Page:
         None
 
         """
-        if self._app:
-            self._app._add_function(func)
+        name = func.__name__
+        if not callable(func):
+            warn(f"Variable '{name}' is not a function.")
+            return
+        if name.startswith("_"):
+            warn(f"Function '{name}' starts with '_'. It is safer to avoid functions that starts with '_'"
+                 f"because they might overlap with functions used by the package.")
+        if self._func_exists(name):
+            warn(f"Function '{name}' exists.")
         old_functions = copy(self._functions)
-        self._functions[func.__name__] = func
+        self._functions[name] = func
         if func.__name__ in old_functions:
             return ""
         script_element = Element("script")
@@ -413,7 +429,8 @@ class Page:
     def on_url_request(self, func, display_return_value=False):
         """
         Sets a function that will be called when the user types the URL in a browser or when a request is sent to the
-        URL. You can view it as the `view_func` in Flask.
+        URL. You can view it as the `view_func` in Flask. It might have limited functionality compared to calling Python
+        functions from HTML, but it is the best for retrieving data from HTTP requests.
 
         Parameters
         ----------
@@ -427,37 +444,49 @@ class Page:
         """
         def new_func():
             original_return = self._basic_view_func()
+            session['user page'] = copy(self)
             new_return = func()
             if display_return_value:
                 return new_return
             else:
-                return original_return
+                pg = session['user page']
+                del session['user page']
+                return pg.to_str()
         self._view_func = new_func
 
-    def _add_script(self, template_type="web"):
+    def get_window(self):
+        for window in webview.windows:
+            if window.uid == self._uid:
+                return window
+
+    def _add_script(self):
         script_tag = Element("script")
-        script_content = get_script(template_type)
+        script_content = get_script(self._app.__class__.__name__)
         script_tag.set_content(script_content)
         self.get_elements(tag_name="html")[0].add_content(script_tag)
 
-    def _create_window(self, name, api, assets_folder):
-        with _TempHTML(directory=assets_folder, html=self.to_str(),
-                       win_kwargs={"title": name, "js_api": api}) as temp_html:
-            self.window = temp_html.win
-            time.sleep(1)
-        api.window = self.window
-        return self.window
-
-    def _create_first_window(self, name, api, assets_folder):
-        self.window = webview.create_window(title=name, js_api=api)
-        def func():
-            with _TempHTML(directory=assets_folder, html=self.to_str(),
-                           win=self.window) as temp_html:
-                time.sleep(1)
-        api.window = self.window
-        return func
+    def _create_window(self):
+        title = self.title
+        url = f"http://localhost:{self._app._port}"+self.url
+        window_defaults = self.window_defaults.copy()
+        for key, value in window_defaults.items():
+            if key == "title":
+                title = value
+                del window_defaults['title']
+            if key == "url":
+                warn(f"The window will load the URL '{value}' instead of '{self.url}' because it was set in `default_windows`.")
+                url = value
+                del window_defaults['url']
+        window = webview.create_window(title=title, url=url, **window_defaults)
+        self._uid = window.uid
+        debug(f"UID of window: {self._uid}")
+        def get_uid():
+            return self._uid
+        window.expose(get_uid)
+        return window
 
     def _evaluate_js(self, func, kwargs):
+        """This function is currently unused."""
         data_from_js = ""
         def wait_then_get_result(result):
             nonlocal data_from_js
@@ -470,42 +499,41 @@ class Page:
         self.window.evaluate_js(codejs, callback=wait_then_get_result)
         return data_from_js
 
-    @_PageSignal()
+    @_PageSignal(app_types=['Website'])
     def _open_another_page(self, url, new):
-        return
-
-
-class _TempHTML:
-
-    def __init__(self, directory, win=None, html="", win_args=(), win_kwargs=None):
-        self.directory = directory
-        self.win = win
-        self.html = html
-        self.win_args = win_args
-        if win_kwargs is None:
-            win_kwargs = {}
-        self.win_kwargs = win_kwargs
-
-    def __enter__(self):
-        i = ""
-        name = f"~toui{i}.html"
-        while os.path.exists(f"{self.directory}/{name}"):
-            if i == "":
-                i = 1
+        if self._app.__class__.__name__ == "DesktopApp":
+            if new:
+                pg = Page(url=url)
+                pg._app = self._app
+                return pg._create_window()
             else:
-                i += 1
-            name = f"~toui{i}.html"
-        self.file = f"{self.directory}/{name}"
-        file = open(self.file, "w")
-        if self.win:
-            self.win.load_url(self.file)
-        else:
-            self.win = webview.create_window(*self.win_args, **self.win_kwargs, url=self.file)
-        file.write(self.html)
-        return self
+                full_url = f"http://localhost:{self._app._port}" + url
+                window = self.get_window()
+                window.load_url(full_url)
+                return window
+            
+    def _inherit_functions(self):
+        for page in self._app.pages:
+            if page.url == self.url:
+                self._functions.update(page._functions)
+                return
+            
+    def _get_functions(self):
+        """Gets all added functions in this class. This is a private function."""
+        return self._functions
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        os.remove(self.file)
+    def _func_exists(self, func_name: str):
+        """Checks if a function exists. This is a private function."""
+        if func_name in self._get_functions().keys():
+            return True
+        else:
+            return False
+
+    def _call_func(self, func_name, *args, page=None):
+        """Calls a function in this class. Its return value depends on the function called. This is a private function."""
+        functions = self._get_functions()
+        info(f'"{func_name}" called')
+        return functions[func_name](*args)
 
 
 if __name__ == "__main__":

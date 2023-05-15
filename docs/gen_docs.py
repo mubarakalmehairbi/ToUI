@@ -1,5 +1,6 @@
 import glob
 import os
+import shutil
 import subprocess
 import sys
 sys.path.append("..")
@@ -75,6 +76,12 @@ section_examples.add_rst()
 sections.append(section_examples)
 
 section_md = MD(file="how_it_works")
+sections.append(section_md)
+
+if os.path.exists("CONTRIBUTING.md"):
+    os.remove("CONTRIBUTING.md")
+shutil.copyfile("../CONTRIBUTING.md", "CONTRIBUTING.md")
+section_md = MD(file="CONTRIBUTING")
 sections.append(section_md)
 
 index = Index(package_title="ToUI", readme_path="../README.md", sections=sections, version_text=f"Version: {__version__}")

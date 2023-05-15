@@ -46,3 +46,13 @@ def selector_to_str(tag_name=None, class_name=None, name=None, attrs=None):
             if attr_value:
                 selectors += f"[{attr_key}=\"{attr_value}\"]"
     return selectors
+
+
+def obj_converter(obj):
+    if obj is True:
+        return 'true'
+    if obj is False:
+        return 'false'
+    if obj is None:
+        return 'null'
+    return obj

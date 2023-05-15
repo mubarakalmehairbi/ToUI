@@ -16,6 +16,11 @@ Run this command:
 pip install toui
 ```
 
+To install `toui` with less dependencies (but limited functionality), run the following command:
+```shell
+pip install toui --global-option="--small"
+```
+
 # How to create a basic website
 Import the required classes:
 ```python

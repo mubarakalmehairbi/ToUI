@@ -1,8 +1,14 @@
 import setuptools
+import sys
 from toui import __version__
 
 with open("README.md", "r") as file:
     long_description = file.read()
+
+small = False
+if "--small" in sys.argv:
+    small = True
+    sys.argv.remove('--small')  
 
 name = "ToUI"
 version = __version__
@@ -10,9 +16,12 @@ author = "Mubarak Almehairbi"
 description = "Creates user interfaces (websites and desktop apps) from HTML easily"
 package_name = "toui"
 requirements = []
+optional_requirements = ['flask-login', 'flask-sqlalchemy', 'flask-basicauth']
 with open(f"requirements.txt", "rt") as file:
     for pkg in file.read().splitlines():
         pkg_name = pkg.split("==")[0]
+        if pkg_name.lower().replace("_","-") in optional_requirements and small:
+            continue
         pkg_version = pkg.split("==")[1]
         pkg_major_version = pkg_version.split(".")[0]
         req = f"{pkg_name}>={pkg_version},<{int(pkg_major_version)+1}"
