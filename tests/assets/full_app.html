@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home page</title>
+</head>
+<body>
+    <h1>All apps</h1>
+    <p id="text">text</p>
+    <button id="new-page-same">Open new page (same tab/window)</button><br>
+    <button id="new-page-diff">Open new page (new tab/window)</button><br>
+    <button id="download">Download file</button><br>
+    <div style="border: 1px solid">
+        <div>Current user: <p id="current-user">None</p></div>
+        <input placeholder="Write your username here" id="username"><input placeholder="Write your password here" id="password"><br>
+        <button id="check-username">Check if username exists</button><p id="check-username-output"></p>
+        <button id="sign-up">Sign up</button><p id="sign-up-output"></p>
+        <button id="sign-in">Sign in</button><p id="sign-in-output"></p>
+        <button id="sign-out">Sign out</button><p id="sign-out-output"></p>
+    </div>
+    <div>
+        Temporary user-specific variables
+        <input placeholder="key" id="user-var-key"><input placeholder="value" id="user-var-value">
+        <button id="add-user-var">Add variable</button>
+        <button id="display-user-vars">Display all user variables</button>
+        <p id="user-vars"></p>
+    </div>
+    <input id="file-upload" type="file"/><br>
+    <p id="file-upload-status"></p>
+    <h1>Desktop apps only</h1>
+    <button id="resize">Resize window</button><br>
+</body>
+</html>

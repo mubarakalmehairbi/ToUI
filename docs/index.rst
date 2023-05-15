@@ -1,7 +1,7 @@
 ToUI
 ====
 
-Version: v1.2.0-alpha.1
+Version: v2.0.0
 
 .. include:: ../README.md
    :parser: myst_parser.sphinx_
@@ -15,3 +15,4 @@ Table of contents
    API Reference
    Examples
    how_it_works
+   CONTRIBUTING

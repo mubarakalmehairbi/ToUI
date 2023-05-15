@@ -1,4 +1,6 @@
 import unittest
+import sys
+sys.path.append("..")
 from toui import Element
 
 def example_func(arg1, args2):

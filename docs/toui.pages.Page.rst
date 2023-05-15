@@ -18,6 +18,7 @@ Methods
    toui.pages.Page.get_element
    toui.pages.Page.get_elements
    toui.pages.Page.get_html_element
+   toui.pages.Page.get_window
    toui.pages.Page.on_url_request
    toui.pages.Page.to_bs4_soup
    toui.pages.Page.to_html_file
