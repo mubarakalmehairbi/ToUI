@@ -825,6 +825,39 @@ def quick_desktop_app(name="App", html_file=None, html_str=None, url="/", assets
     return app
 
 
+def set_global_app(app):
+    """
+    Allows the app object to be shared across Python modules.
+
+    Examples
+    --------
+
+    Suppose you have two Python scripts, "main.py" and "home_page.py". In "main.py", you can create the app
+    and make it global:
+
+    >>> from toui import Website, set_global_app
+    >>> app = Website(__name__)
+    >>> set_global_app(app)
+
+    While in "home_page.py", you can get the shared app:
+
+    >>> from toui import get_global_app
+    >>> app = get_global_app()
+
+    """
+    global _global_app
+    _global_app = app
+
+
+def get_global_app():
+    """
+    Gets the shared app object.
+
+    See :py:meth:`set_global_app`.
+    """
+    return _global_app
+
+
 if __name__ == "__main__":
     import doctest
     results = doctest.testmod()

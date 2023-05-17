@@ -45,3 +45,5 @@ Functions
 
    toui.apps.quick_website
    toui.apps.quick_desktop_app
+   toui.apps.set_global_app
+   toui.apps.get_global_app

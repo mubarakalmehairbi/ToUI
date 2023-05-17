@@ -5,7 +5,7 @@ import subprocess
 import sys
 sys.path.append("..")
 from toui import Website, DesktopApp, Page, Element, IFrameElement,\
-    ToUIBlueprint, quick_website, quick_desktop_app, __version__
+    ToUIBlueprint, quick_website, quick_desktop_app, set_global_app, get_global_app, __version__
 from toui._signals import File
 from docs.rst_objects import Index, Section, MD, Class, Example, Function
 
@@ -34,7 +34,7 @@ cls_object.to_rst()
 other_objects.append(cls_object)
 
 functions = []
-for func in (quick_website, quick_desktop_app):
+for func in (quick_website, quick_desktop_app, set_global_app, get_global_app):
     func_object = Function(func)
     func_object.to_rst()
     functions.append(func_object)
