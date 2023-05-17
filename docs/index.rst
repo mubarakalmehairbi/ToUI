@@ -1,7 +1,7 @@
 ToUI
 ====
 
-Version: v2.0.1
+Version: v2.1.0
 
 .. include:: ../README.md
    :parser: myst_parser.sphinx_
