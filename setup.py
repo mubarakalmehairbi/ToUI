@@ -11,21 +11,34 @@ if "--small" in sys.argv:
     sys.argv.remove('--small')  
 
 name = "ToUI"
-version = __version__
+version = __version__ + "+1"
 author = "Mubarak Almehairbi"
 description = "Creates user interfaces (websites and desktop apps) from HTML easily"
 package_name = "toui"
 requirements = []
 optional_requirements = ['flask-login', 'flask-sqlalchemy', 'flask-basicauth']
-with open(f"requirements.txt", "rt") as file:
-    for pkg in file.read().splitlines():
-        pkg_name = pkg.split("==")[0]
-        if pkg_name.lower().replace("_","-") in optional_requirements and small:
-            continue
-        pkg_version = pkg.split("==")[1]
-        pkg_major_version = pkg_version.split(".")[0]
-        req = f"{pkg_name}>={pkg_version},<{int(pkg_major_version)+1}"
-        requirements.append(req)
+
+reqs_txt = \
+"""
+beautifulsoup4==4.12.2
+Flask==2.2.5
+Flask_BasicAuth==0.2.0
+Flask_Caching==2.0.2
+Flask_Login==0.6.2
+flask_sock==0.6.0
+flask_sqlalchemy==3.0.3
+pywebview==4.1
+tinycss==0.4
+"""
+
+for pkg in reqs_txt.splitlines():
+    pkg_name = pkg.split("==")[0]
+    if pkg_name.lower().replace("_","-") in optional_requirements and small:
+        continue
+    pkg_version = pkg.split("==")[1]
+    pkg_major_version = pkg_version.split(".")[0]
+    req = f"{pkg_name}>={pkg_version},<{int(pkg_major_version)+1}"
+    requirements.append(req)
 
 
 setuptools.setup(
