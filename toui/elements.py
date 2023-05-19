@@ -369,13 +369,32 @@ class Element:
         Returns
         -------
         str
-         If the attribute exists.
+            If the attribute exists.
 
         None
             If the attribute does not exist.
 
         """
         return self.get_attr("value")
+    
+    def get_selected(self) -> 'Element':
+        """
+        Gets the selected option of the HTML element ``<select>``.
+
+        This method is used for ``<select>`` elements only.
+
+        Returns
+        -------
+        Element
+            If it has a selected option.
+
+        None
+            If it does not have a selected option.
+
+        """
+        for element in self.get_elements():
+            if element.has_attr("selected"):
+                return element
 
     def set_value(self, value):
         """

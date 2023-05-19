@@ -89,5 +89,5 @@ index.to_rst()
 
 
 if run:
-    subprocess.check_call(['./make', 'clean'])
-    subprocess.check_call(['./make', 'html'])
+    os.system("make clean")
+    os.system("make html")

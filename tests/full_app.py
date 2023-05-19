@@ -116,6 +116,13 @@ def upload_file():
     pg.get_element("file-upload-status").set_content(f"File '{name}' uploaded.")
 
 
+def change_selected():
+    pg = app.get_user_page()
+    option = pg.get_element("colors").get_selected()
+    color = option.get_content()
+    pg.get_element("selected").set_content(f"Selected color is {color}")
+
+
 def resize(w, h):
     window = app.get_user_page().get_window()
     if window:
@@ -134,6 +141,7 @@ home_page.get_element("sign-out").onclick(sign_out)
 home_page.get_element("add-user-var").onclick(add_user_var)
 home_page.get_element("display-user-vars").onclick(display_user_vars)
 home_page.get_element("file-upload").on("change", upload_file)
+home_page.get_element("colors").on("change", change_selected)
 home_page.get_element("resize").onclick(resize, 1000, 1000, quotes=False)
 
 

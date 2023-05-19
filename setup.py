@@ -11,7 +11,7 @@ if "--small" in sys.argv:
     sys.argv.remove('--small')  
 
 name = "ToUI"
-version = __version__ + "+1"
+version = __version__
 author = "Mubarak Almehairbi"
 description = "Creates user interfaces (websites and desktop apps) from HTML easily"
 package_name = "toui"
@@ -19,8 +19,7 @@ requirements = []
 optional_requirements = ['flask-login', 'flask-sqlalchemy', 'flask-basicauth']
 
 reqs_txt = \
-"""
-beautifulsoup4==4.12.2
+"""beautifulsoup4==4.12.2
 Flask==2.2.5
 Flask_BasicAuth==0.2.0
 Flask_Caching==2.0.2
@@ -28,8 +27,7 @@ Flask_Login==0.6.2
 flask_sock==0.6.0
 flask_sqlalchemy==3.0.3
 pywebview==4.1
-tinycss==0.4
-"""
+tinycss==0.4"""
 
 for pkg in reqs_txt.splitlines():
     pkg_name = pkg.split("==")[0]

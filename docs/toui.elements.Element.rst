@@ -21,6 +21,7 @@ Methods
    toui.elements.Element.get_files
    toui.elements.Element.get_height_property
    toui.elements.Element.get_id
+   toui.elements.Element.get_selected
    toui.elements.Element.get_style_property
    toui.elements.Element.get_value
    toui.elements.Element.get_width_property

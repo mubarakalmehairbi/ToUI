@@ -86,6 +86,19 @@ async function _manageProperties() {
             input_element.removeAttribute("checked")
         }
     }
+
+    var select_elements = document.getElementsByTagName("select")
+    for (var select_element of select_elements) {
+        select_element.setAttribute("value", select_element.value)
+        for (var i = 0; i < select_element.options.length; i++) {
+            option = select_element.options[i]
+            if (i == select_element.selectedIndex) {
+                option.setAttribute("selected", "")
+            } else {
+                option.removeAttribute("selected")
+            }
+        }
+    }
     return properties
 }
 
