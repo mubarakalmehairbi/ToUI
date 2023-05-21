@@ -267,6 +267,21 @@ class Element:
                                  "parent": self._selector}
             elements_list.append(element)
         return elements_list
+    
+    def get_selector(self) -> str:
+        """
+        Gets the CSS selector of an element.
+
+        Returns
+        -------
+        str
+
+        None:
+            If the element is not part of a page.
+
+        """
+        selector = self._element.name + ''.join([f'[{attr}="{value}"]' for attr, value in self._element.attrs.items()])
+        return selector
 
     def get_attr(self, name):
         """
@@ -593,7 +608,7 @@ class Element:
                 else:
                     self._functions[func.__name__] = func
 
-    def on(self, event, func_or_name, *func_args, quotes=True):
+    def on(self, event, func_or_name, *func_args, quotes=True, return_itself=False):
         """
         Creates an HTML event attribute and adds a Python function to it.
 
@@ -620,6 +635,9 @@ class Element:
 
         quotes: bool, default = True
             If ``True``, each argument will be surrounded by double quotes.
+
+        return_itsef: bool, default=False
+            If ``True``, the first argument of the function will be the element itself.
 
         Examples
         --------
@@ -655,6 +673,8 @@ class Element:
             args = ",".join([f'"{arg}"' for arg in func_args])
         else:
             args = ",".join([f'{obj_converter(arg)}' for arg in func_args])
+        if return_itself:
+            args = "this, " + args
         if callable(func_or_name):
             name = func_or_name.__name__
             if self._parent_page:
@@ -666,7 +686,7 @@ class Element:
         value = f"{name}({args})"
         self.set_attr(name=f"on{event}", value=value)
 
-    def onclick(self, func_or_name, *func_args, quotes=True):
+    def onclick(self, func_or_name, *func_args, quotes=True, return_itself=False):
         """
         Creates the HTML event attribute ``onclick`` and adds a Python function to it.
 
@@ -690,12 +710,15 @@ class Element:
         quotes: bool, default = True
             If ``True``, each argument will be surrounded by double quotes.
 
+        return_itsef: bool, default=False
+            If ``True``, the first argument of the function will be the element itself.
+
         See Also
         --------
         Element.on
 
         """
-        self.on('click', func_or_name, *func_args, quotes=quotes)
+        self.on('click', func_or_name, *func_args, quotes=quotes, return_itself=return_itself)
 
     def _from_bs4_tag_no_copy(self, bs4_tag):
         self._element = bs4_tag

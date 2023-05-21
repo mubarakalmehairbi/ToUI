@@ -22,6 +22,7 @@ Methods
    toui.elements.IFrameElement.get_height_property
    toui.elements.IFrameElement.get_id
    toui.elements.IFrameElement.get_selected
+   toui.elements.IFrameElement.get_selector
    toui.elements.IFrameElement.get_style_property
    toui.elements.IFrameElement.get_value
    toui.elements.IFrameElement.get_width_property

@@ -594,12 +594,22 @@ class _App(metaclass=ABCMeta):
             new_page._signal_mode = True
             new_page._ws = ws
             new_page._inherit_functions()
+            selector_to_element = data_dict['selector-to-element']
+            if selector_to_element:
+                for index, arg in enumerate(args):
+                    if type(arg) is dict:
+                        if arg.get('type') == "element":
+                            args[index] = new_page.get_element_from_selector(arg['selector'])
             if "uid" in data_dict:
                 new_page._uid = data_dict['uid']
             session['user page'] = new_page
-            if new_page._func_exists(func):
-                new_page._call_func(func, *args)
-            del session['user page']
+            try:
+                if new_page._func_exists(func):
+                    new_page._call_func(func, *args)
+                del session['user page']
+            except Exception as e:
+                del session['user page']
+                raise e
             e = time.time()
             debug(f"TIME: {e - s}s")
 

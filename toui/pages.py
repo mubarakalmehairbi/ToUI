@@ -338,6 +338,37 @@ class Page:
                                  "number": tag_num}
             elements_list.append(element)
         return elements_list
+    
+    def get_element_from_selector(self, selector, do_copy=False):
+        """
+        Gets an element from its CSS selector.
+
+        Parameters
+        ----------
+        selector: str
+
+        do_copy: bool, default = False
+            If ``True``, the element will be copied.
+
+        Returns
+        -------
+        element: Element
+            If the element was found, an `Element` object will be returned. Otherwise ``None``
+            will be returned.
+
+        """
+        bs4_tag = self._html.select_one(selector=selector)
+        if bs4_tag is None:
+            return None
+        element = Element()
+        if do_copy:
+            element.from_bs4_tag(bs4_tag)
+        else:
+            element._from_bs4_tag_no_copy(bs4_tag)
+        element._parent_page = self
+        element._signal_mode = self._signal_mode
+        element._selector = {"selector": selector}
+        return element
 
     def get_html_element(self) -> Element:
         """

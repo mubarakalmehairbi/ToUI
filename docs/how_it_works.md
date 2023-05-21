@@ -30,11 +30,17 @@ The most important JSON object. It contains the following keys:
 {"type": "page",
  "func": ...,
  "args": ...,
+ "selector-to-element": ...,
  "url": ...,
  "html": ...,
  "uid": ...}
 ```
-`type` is the type of JSON object, and it has the value 'page' when JavaScript sends the HTML document as data. `func` contains the name of the Python function that should be called, `args` are the arguments of this function, `url` is the URL of the HTML page that sent the data, `html` is the HTML document itself as a string. `uid` is the id of the window when creating desktop apps.
+`type` is the type of JSON object, and it has the value 'page' when JavaScript sends the HTML document as data. `func` contains the name of the Python function that should be called, `args` are the arguments of this function, `selector-to-element` is a boolean that is only true if one of the arguments is an HTML element, `url` is the URL of the HTML page that sent the data, `html` is the HTML document itself as a string. `uid` is the id of the window when creating desktop apps.
+If one of the argument is an HTML element, it will be converted to a JSON that contains its CSS selector:
+```json
+{"type": "element",
+ "selector": ...,
+```
 
 #### Files information JSON
 Another type of JSON object is a JSON that contains uploaded files:

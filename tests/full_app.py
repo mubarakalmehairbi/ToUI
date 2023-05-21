@@ -123,6 +123,16 @@ def change_selected():
     pg.get_element("selected").set_content(f"Selected color is {color}")
 
 
+def get_element_selector():
+    pg = app.get_user_page()
+    element_selector = pg.get_element("get-selector").get_selector()
+    pg.get_element("display-selector").set_content(element_selector)
+
+
+def get_itself(element):
+    element.set_content("success")
+
+
 def resize(w, h):
     window = app.get_user_page().get_window()
     if window:
@@ -142,6 +152,8 @@ home_page.get_element("add-user-var").onclick(add_user_var)
 home_page.get_element("display-user-vars").onclick(display_user_vars)
 home_page.get_element("file-upload").on("change", upload_file)
 home_page.get_element("colors").on("change", change_selected)
+home_page.get_element("get-selector").onclick(get_element_selector)
+home_page.get_element("get-itself").onclick(get_itself, return_itself=True)
 home_page.get_element("resize").onclick(resize, 1000, 1000, quotes=False)
 
 

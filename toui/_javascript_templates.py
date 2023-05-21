@@ -19,9 +19,20 @@ async function _toPy(...args) {
     if (_appType === "DesktopApp" && _pywebviewIsLoaded == false) {
         await _waitForPywebview()
     }
+
+    var selector_to_element = false
+    for (var i = 0; i < args.length; i++) {
+        if (args[i] instanceof HTMLElement) {
+            args[i] = {type: "element",
+                       selector: _getElementSelector(args[i])}
+            selector_to_element = true
+        }
+    }
+
     var json = {type: "page",
                 func: func,
                 args: args,
+                "selector-to-element": selector_to_element,
                 url: urlPath}
     _manageProperties()
     json['html'] = _getDoc()
@@ -86,6 +97,11 @@ async function _manageProperties() {
             input_element.removeAttribute("checked")
         }
     }
+
+    var textarea_elements = document.getElementsByTagName("textarea")
+    for (var textarea_element of textarea_elements) {
+        textarea_element.setAttribute("value", textarea_element.value)
+        }
 
     var select_elements = document.getElementsByTagName("select")
     for (var select_element of select_elements) {

@@ -16,6 +16,7 @@ Methods
    toui.pages.Page.from_str
    toui.pages.Page.get_body_element
    toui.pages.Page.get_element
+   toui.pages.Page.get_element_from_selector
    toui.pages.Page.get_elements
    toui.pages.Page.get_html_element
    toui.pages.Page.get_window

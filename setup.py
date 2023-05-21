@@ -8,7 +8,7 @@ with open("README.md", "r") as file:
 small = False
 if "--small" in sys.argv:
     small = True
-    sys.argv.remove('--small')  
+    sys.argv.remove('--small')
 
 name = "ToUI"
 version = __version__
