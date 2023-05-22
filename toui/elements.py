@@ -282,6 +282,37 @@ class Element:
         """
         selector = self._element.name + ''.join([f'[{attr}="{value}"]' for attr, value in self._element.attrs.items()])
         return selector
+    
+    def get_unique_selector(self):
+        """
+        Gets the unique CSS selector of an element.
+
+        Returns
+        -------
+        str
+
+        None:
+            If the element is not part of a page.
+
+        """
+        element = self._element
+        path = []
+        while element is not None and element.name != "[document]":
+            selector = element.name.lower()
+
+            if element.get('id'):
+                selector += '#' + element['id']
+                path.insert(0, selector)
+                break
+            else:
+                index = [child for child in element.parent.children if child.name == element.name].index(element) + 1
+                if index != 1:
+                    selector += ":nth-of-type(" + str(index) + ")"
+
+            path.insert(0, selector)
+            element = element.parent
+
+        return ' > '.join(path)
 
     def get_attr(self, name):
         """

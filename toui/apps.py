@@ -72,7 +72,8 @@ class _App(metaclass=ABCMeta):
             The path to the folder that contains the HTML files and other assets.
 
         secret_key: str (optional)
-            Sets the `secret_key` attribute for `flask.Flask`
+            Sets the `secret_key` attribute for `flask.Flask`. You can also set the environment variable SECRET_KEY from
+            the command line and ToUI will get it using `os.environ`.
 
             
         Attributes
@@ -114,10 +115,13 @@ class _App(metaclass=ABCMeta):
         if not assets_folder:
             assets_folder = "/"
         self.flask_app = Flask(name, static_folder=assets_folder, static_url_path="/")
-        if secret_key is None:
+        if secret_key is not None:
+            self.flask_app.secret_key = secret_key
+        elif os.environ.get('SECRET_KEY') is not None:
+            self.flask_app.secret_key = os.environ.get('SECRET_KEY')
+        else:
             warn("No secret key was set. Generating a random secret key for Flask.")
-            secret_key = os.urandom(50)
-        self.flask_app.secret_key = secret_key
+            self.flask_app.secret_key = os.urandom(50)
         self.pages = []
         self._add_communication_method()
         self._add_user_vars()
@@ -396,17 +400,45 @@ class _App(metaclass=ABCMeta):
         user = self._user_cls.query.filter_by(username=username, password=password, **other_info).first()
         if user:
             login_user(user)
+            self._cache.set("user-id", user.id)
+            return True
+        else:
+            return False
+        
+    @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
+    def signin_user_from_id(self, user_id, **other_info):
+        """
+        Loads the data of a user from database using the user's ID.
+
+        Parameters
+        ----------
+        id: int
+
+        other_info
+            Other information required for signing in.
+
+        Returns
+        -------
+        bool
+            ``True`` if the user is signed in, and ``False`` if it is not signed in.
+
+        """
+        self._confirm_user_database_created()
+        user = self._user_cls.query.filter_by(id=user_id, **other_info).first()
+        if user:
+            login_user(user)
+            self._cache.set("user-id", user_id)
             return True
         else:
             return False
 
-    @staticmethod
     @_ReqsChecker(['flask-login'])
-    def signout_user():
+    def signout_user(self):
         """
-        A static method that signs out the current user.
+        A method that signs out the current user.
         """
         logout_user()
+        self._cache.set('user-id', None)
 
     @_ReqsChecker(['flask-sqlalchemy'])
     def username_exists(self, username):
@@ -559,6 +591,10 @@ class _App(metaclass=ABCMeta):
             return False
         if not "user page" in session.keys():
             session['user page'] = None
+        if not "_user_id" in session.keys():
+            user_id = self._cache.get('user-id')
+            if user_id:
+                session['_user_id'] = user_id
         return True
     
     def _download(self, path_id):
@@ -618,7 +654,7 @@ class _App(metaclass=ABCMeta):
             raise ToUINotAddedError("You have not created the user database yet. To create it, call the method: `add_user_database`.")
 
     def _load_user(self, user_id):
-        return self._user_cls.get(int(user_id))
+        return self._user_cls.query.filter_by(id=int(user_id)).first()
 
 
 class _FuncWithPage:

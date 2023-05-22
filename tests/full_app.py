@@ -9,9 +9,9 @@ from toui import DesktopApp, Website, Page
 #
 ##################################################
 
-#app = Website(__name__, assets_folder="assets")
-app = DesktopApp(__name__, assets_folder="assets")
-app.add_restriction('username', 'p123')
+app = Website(__name__, assets_folder="assets")
+#app = DesktopApp(__name__, assets_folder="assets")
+#app.add_restriction('username', 'p123')
 app.add_user_database(f"sqlite:///{os.getcwd()}/.user_database.db")
 
 ##################################################
@@ -129,6 +129,12 @@ def get_element_selector():
     pg.get_element("display-selector").set_content(element_selector)
 
 
+def get_unique_selector():
+    pg = app.get_user_page()
+    element_selector = pg.get_elements(name="get-unique-selector")[0].get_unique_selector()
+    pg.get_element("display-selector").set_content(element_selector)
+
+
 def get_itself(element):
     element.set_content("success")
 
@@ -153,13 +159,27 @@ home_page.get_element("display-user-vars").onclick(display_user_vars)
 home_page.get_element("file-upload").on("change", upload_file)
 home_page.get_element("colors").on("change", change_selected)
 home_page.get_element("get-selector").onclick(get_element_selector)
+home_page.get_elements(name="get-unique-selector")[0].onclick(get_unique_selector)
 home_page.get_element("get-itself").onclick(get_itself, return_itself=True)
 home_page.get_element("resize").onclick(resize, 1000, 1000, quotes=False)
 
 
+def get_current_user():
+    pg = app.get_user_page()
+    current_user = app.get_current_user()
+    if current_user:
+        username = current_user.username
+    else:
+        username = "no user signed in"
+    pg.get_element("display-user").set_content(username)
+
+
 def return_to_home():
     app.open_new_page("/")
-page_2.get_elements("button")[0].onclick(return_to_home)
+
+
+page_2.get_element("get-user").onclick(get_current_user)
+page_2.get_element("return").onclick(return_to_home)
 
 
 
