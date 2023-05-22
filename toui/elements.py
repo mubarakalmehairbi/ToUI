@@ -109,7 +109,6 @@ class Element:
     def __init__(self, tag_name="div"):
         self._element = Tag(name=tag_name)
         self._parent_page = None
-        self._parent_element =None
         self._signal_mode = False
         self._functions = {}
 
@@ -211,7 +210,6 @@ class Element:
             element._from_bs4_tag_no_copy(bs4_tag)
         element._signal_mode = self._signal_mode
         element._parent_page = self._parent_page
-        element._parent_element = self
         return element
 
     def get_elements(self, tag_name=None, class_name=None, name=None, do_copy=False, attrs=None):
@@ -257,9 +255,38 @@ class Element:
                 element._from_bs4_tag_no_copy(bs4_tag)
             element._signal_mode = self._signal_mode
             element._parent_page = self._parent_page
-            element._parent_element = self
             elements_list.append(element)
         return elements_list
+    
+    def get_parent(self, do_copy=False) -> 'Element':
+        """
+        Gets the parent element.
+
+        Parameters
+        ----------
+        do_copy: bool, default = False
+            If ``True``, the element will be copied.
+
+        Returns
+        -------
+        element: Element
+            If a parent was found, an `Element` object will be returned.
+
+        None
+            If a parent was not found.
+
+        """
+        bs4_tag = self._element.parent
+        if not isinstance(bs4_tag, Tag):
+            return None
+        element = Element()
+        if do_copy:
+            element.from_bs4_tag(bs4_tag)
+        else:
+            element._from_bs4_tag_no_copy(bs4_tag)
+        element._signal_mode = self._signal_mode
+        element._parent_page = self._parent_page
+        return element
     
     def get_selector(self) -> str:
         """
