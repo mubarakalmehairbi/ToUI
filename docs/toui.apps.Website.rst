@@ -23,6 +23,7 @@ Methods
    toui.apps.Website.set_data_validation
    toui.apps.Website.set_ws_validation
    toui.apps.Website.signin_user
+   toui.apps.Website.signin_user_from_id
    toui.apps.Website.signout_user
    toui.apps.Website.signup_user
    toui.apps.Website.username_exists

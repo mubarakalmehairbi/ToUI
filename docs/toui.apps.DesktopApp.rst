@@ -23,6 +23,7 @@ Methods
    toui.apps.DesktopApp.set_data_validation
    toui.apps.DesktopApp.set_ws_validation
    toui.apps.DesktopApp.signin_user
+   toui.apps.DesktopApp.signin_user_from_id
    toui.apps.DesktopApp.signout_user
    toui.apps.DesktopApp.signup_user
    toui.apps.DesktopApp.username_exists
