@@ -287,7 +287,6 @@ class Page:
             element._from_bs4_tag_no_copy(bs4_tag)
         element._parent_page = self
         element._signal_mode = self._signal_mode
-        element._selector = {"selector": f"[id={element_id}]"}
         return element
 
     def get_elements(self, tag_name=None, class_name=None, name=None, do_copy=False, attrs=None):
@@ -333,9 +332,6 @@ class Page:
                 element._from_bs4_tag_no_copy(bs4_tag)
             element._parent_page = self
             element._signal_mode = self._signal_mode
-            element._selector = {"selector": selector_to_str(tag_name=tag_name, class_name=class_name,
-                                                             name=name, attrs=attrs),
-                                 "number": tag_num}
             elements_list.append(element)
         return elements_list
     
@@ -367,7 +363,6 @@ class Page:
             element._from_bs4_tag_no_copy(bs4_tag)
         element._parent_page = self
         element._signal_mode = self._signal_mode
-        element._selector = {"selector": selector}
         return element
 
     def get_html_element(self) -> Element:
@@ -476,13 +471,23 @@ class Page:
         def new_func():
             original_return = self._basic_view_func()
             session['user page'] = copy(self)
-            new_return = func()
-            if display_return_value:
-                return new_return
-            else:
-                pg = session['user page']
-                del session['user page']
-                return pg.to_str()
+            try:
+                user_id = self._app._cache.get("user-id")
+                if user_id:
+                    session['_user_id'] = user_id
+                new_return = func()
+                if display_return_value:
+                    del session['user page']
+                    return new_return
+                else:
+                    pg = session['user page']
+                    del session['user page']
+                    return pg.to_str()
+            except Exception as e:
+                if 'user page' in session:
+                    del session['user page']
+                raise e
+
         self._view_func = new_func
 
     def get_window(self):

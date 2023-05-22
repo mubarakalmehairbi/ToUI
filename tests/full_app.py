@@ -178,7 +178,7 @@ def return_to_home():
     app.open_new_page("/")
 
 
-page_2.get_element("get-user").onclick(get_current_user)
+page_2.on_url_request(get_current_user)
 page_2.get_element("return").onclick(return_to_home)
 
 
