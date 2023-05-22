@@ -192,20 +192,9 @@ async function _saveFile(kwargs) {
     }
 }
     
-function _getElement(kwargs) {
-    var number = 0
-    if ('number' in kwargs) {
-        var number = parseInt(kwargs['number'])
-    }
-    if ('parent' in kwargs) {
-        const parent = _getElement(kwargs['parent'])
-        const element = parent.querySelectorAll(kwargs['selector'])[number]
-        return element
-    } else {
-        const elements = document.querySelectorAll(kwargs['selector'])
-        const element = elements[number]
-        return element
-    }
+function _getElement(selector) {
+    const element = document.querySelector(selector)
+    return element
 }
 
 var _getElementSelector = function(el) {

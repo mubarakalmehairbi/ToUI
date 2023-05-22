@@ -19,7 +19,7 @@ class _ElementSignal(Signal):
     @staticmethod
     def _default_kwargs(kwargs):
         original_copy = kwargs['original_copy']
-        return {"selector": original_copy._selector}
+        return {"selector": original_copy.get_unique_selector()}
 
     @staticmethod
     def from_str(**kwargs):
@@ -110,7 +110,6 @@ class Element:
         self._element = Tag(name=tag_name)
         self._parent_page = None
         self._parent_element =None
-        self._selector = {}
         self._signal_mode = False
         self._functions = {}
 
@@ -213,8 +212,6 @@ class Element:
         element._signal_mode = self._signal_mode
         element._parent_page = self._parent_page
         element._parent_element = self
-        element._selector = {"selector": f"[id={element_id}]",
-                             "parent": self._selector}
         return element
 
     def get_elements(self, tag_name=None, class_name=None, name=None, do_copy=False, attrs=None):
@@ -261,10 +258,6 @@ class Element:
             element._signal_mode = self._signal_mode
             element._parent_page = self._parent_page
             element._parent_element = self
-            element._selector = {"selector": selector_to_str(tag_name=tag_name, class_name=class_name,
-                                                             name=name, attrs=attrs),
-                                 "number": tag_num,
-                                 "parent": self._selector}
             elements_list.append(element)
         return elements_list
     
