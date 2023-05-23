@@ -47,9 +47,9 @@ class Signal:
             return value
         return new_func
 
-    def _call_method(self, func, **kwargs):
+    def _call_method(self, func_, **kwargs):
         for method_name, method in inspect.getmembers(self, inspect.isfunction):
-            if method_name == func.__name__ and (not method_name.startswith("_") or
+            if method_name == func_.__name__ and (not method_name.startswith("_") or
                                                  method_name in self.included_private_methods):
                 signal = method(**kwargs)
                 if signal:
