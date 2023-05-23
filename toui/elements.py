@@ -567,7 +567,9 @@ class Element:
             if declaration.name == property:
                 property_value = ""
                 for v in declaration.value:
-                    property_value += v.as_css()
+                    property_value += str(v.value)
+                    if v.unit is not None:
+                        property_value += str(v.unit)
                 return property_value
 
     def set_style_property(self, property, value):
@@ -599,7 +601,7 @@ class Element:
             else:
                 property_value = ""
                 for v in declaration.value:
-                    property_value += v.as_css()
+                    property_value += str(v.value) + str(v.unit)
             new_style += f"{property_value};"
         if not property_is_set:
             new_style += f"{property}: {value};"
