@@ -13,6 +13,7 @@ app = Website(__name__, assets_folder="assets")
 #app = DesktopApp(__name__, assets_folder="assets")
 #app.add_restriction('username', 'p123')
 app.add_user_database(f"sqlite:///{os.getcwd()}/.user_database.db")
+app.user_vars['my default variable'] = "default value"
 
 ##################################################
 #

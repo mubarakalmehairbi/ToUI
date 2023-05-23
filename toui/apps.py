@@ -15,6 +15,7 @@ from typing import Any
 from flask import Flask, session, request, send_file
 from flask_sock import Sock
 from flask_caching import Cache
+from flask_session import Session
 import webview
 from toui._helpers import warn, info, debug, error
 from toui.pages import Page
@@ -92,18 +93,25 @@ class _App(metaclass=ABCMeta):
             A list of added `Page` objects.
 
 
+        Warning
+        -------
+        A folder called 'flask_session' will be created in the main directory when calling this class.
+
+
         .. admonition:: Behind The Scenes
             :class: tip
             
             ToUI uses `Flask` and its extenstions to create apps. When creating an instance of this class, the following
             extensions are used:
 
+            - `Session` class extension from `Flask-Session` package.
             - `Sock` class extension from `Flask-Sock` package.
-            - `Cache` class extension from `Flask-Cache` package.
+            - `Cache` class extension from `Flask-Caching` package.
 
             The following `Flask` configurations are also set:
 
             - `CACHE_TYPE = "SimpleCache"`
+            - `SESSION_TYPE = "filesystem"`
 
         """
         self._functions = {}
@@ -123,6 +131,8 @@ class _App(metaclass=ABCMeta):
             warn("No secret key was set. Generating a random secret key for Flask.")
             self.flask_app.secret_key = os.urandom(50)
         self.pages = []
+        self.flask_app.config['SESSION_TYPE'] = "filesystem"
+        Session(self.flask_app)
         self._add_communication_method()
         self._add_user_vars()
         self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
@@ -235,9 +245,9 @@ class _App(metaclass=ABCMeta):
 
         """
         path_id = 0
-        while self._cache.get(f'toui-download-{path_id}'):
+        while self._user_vars._get(f'toui-download-{path_id}'):
             path_id += 1
-        self._cache.set(f'toui-download-{path_id}', filepath)
+        self._user_vars._set(f'toui-download-{path_id}', filepath)
         self.open_new_page(f"/toui-download-{path_id}", new=new)
 
     @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
@@ -400,7 +410,7 @@ class _App(metaclass=ABCMeta):
         user = self._user_cls.query.filter_by(username=username, password=password, **other_info).first()
         if user:
             login_user(user)
-            self._cache.set("user-id", user.id)
+            self._user_vars._set("user-id", user.id)
             return True
         else:
             return False
@@ -427,7 +437,7 @@ class _App(metaclass=ABCMeta):
         user = self._user_cls.query.filter_by(id=user_id, **other_info).first()
         if user:
             login_user(user)
-            self._cache.set("user-id", user_id)
+            self._user_vars._set("user-id", user_id)
             return True
         else:
             return False
@@ -438,7 +448,7 @@ class _App(metaclass=ABCMeta):
         A method that signs out the current user.
         """
         logout_user()
-        self._cache.set('user-id', None)
+        self._user_vars._del('user-id')
 
     @_ReqsChecker(['flask-sqlalchemy'])
     def username_exists(self, username):
@@ -592,14 +602,14 @@ class _App(metaclass=ABCMeta):
         if not "user page" in session.keys():
             session['user page'] = None
         if not "_user_id" in session.keys():
-            user_id = self._cache.get('user-id')
+            user_id = self._user_vars._get('user-id')
             if user_id:
                 session['_user_id'] = user_id
         return True
     
     def _download(self, path_id):
         debug(f"PATH: {path_id}")
-        file_to_download = self._cache.get(f'toui-download-{path_id}')
+        file_to_download = self._user_vars._get(f'toui-download-{path_id}')
         debug(f"File to download: {file_to_download}")
         if file_to_download:
             return send_file(file_to_download, as_attachment=True)
@@ -671,33 +681,76 @@ class _UserVars(MutableMapping):
 
     def __init__(self, cache) -> None:
         self._cache = cache
-        self._cache.set('toui-vars', {})
+        self._default_vars = {}
+
+    def _sid_check(self):
+        try:
+            session.keys()
+            session_exists = True
+        except:
+            session_exists = False
+        if session_exists:
+            user_dict = self._cache.get(session.sid)
+            if user_dict is None:
+                self._cache.set(session.sid, {"toui-vars": self._default_vars})
+            return session.sid
+
+    def _get_toui_vars(self):
+        sid = self._sid_check()
+        if sid:
+            return self._cache.get(sid)['toui-vars']
+        else:
+            return self._default_vars
+    
+    def _set_toui_vars(self, toui_vars):
+        sid = self._sid_check()
+        if sid:
+            self._cache.set(session.sid, {'toui-vars': toui_vars})
+        else:
+            self._default_vars = toui_vars
+
+    def _get(self, key):
+        self._sid_check()
+        return self._cache.get(session.sid).get(key)
+    
+    def _set(self, key, value):
+        """Avoid key='toui-vars'"""
+        self._sid_check()
+        sid_dict = self._cache.get(session.sid)
+        sid_dict[key] = value
+        self._cache.set(session.sid, sid_dict)
+
+    def _del(self, key):
+        self._sid_check()
+        sid_dict = self._cache.get(session.sid)
+        del sid_dict[key]
+        self._cache.set(session.sid, sid_dict)
 
     def __getitem__(self, key):
-        return self._cache.get('toui-vars')[key]
+        return self._get_toui_vars()[key]
     
     def __setitem__(self, key, value):
-        toui_vars = self._cache.get('toui-vars')
+        toui_vars = self._get_toui_vars()
         toui_vars[key] = value
-        self._cache.set('toui-vars', toui_vars)
+        self._set_toui_vars(toui_vars)
 
     def __delitem__(self, key: Any) -> None:
-        toui_vars = self._cache.get('toui-vars')
+        toui_vars = self._get_toui_vars()
         del toui_vars[key]
-        self._cache.set('toui-vars', toui_vars)
+        self._set_toui_vars(toui_vars)
 
     def __iter__(self):
-        for key in self._cache.get('toui-vars'):
+        for key in self._get_toui_vars():
             yield key
 
     def __len__(self) -> int:
-        return len(self._cache.get('toui-vars'))
+        return len(self._get_toui_vars())
     
     def __getattr__(self, name: str) -> Any:
-        return getattr(self._cache.get('toui-vars'), name)
+        return getattr(self._get_toui_vars(), name)
     
     def __repr__(self) -> str:
-        return repr(self._cache.get('toui-vars'))
+        return repr(self._get_toui_vars())
     
 
 class Website(_App):

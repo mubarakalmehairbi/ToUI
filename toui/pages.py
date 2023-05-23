@@ -472,7 +472,7 @@ class Page:
             original_return = self._basic_view_func()
             session['user page'] = copy(self)
             try:
-                user_id = self._app._cache.get("user-id")
+                user_id = self._app._user_vars._get("user-id")
                 if user_id:
                     session['_user_id'] = user_id
                 new_return = func()
