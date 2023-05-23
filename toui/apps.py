@@ -14,6 +14,7 @@ from functools import wraps
 from typing import Any
 from flask import Flask, session, request, send_file
 from flask_sock import Sock
+from flask_caching import Cache
 import webview
 from toui._helpers import warn, info, debug, error
 from toui.pages import Page
@@ -95,9 +96,14 @@ class _App(metaclass=ABCMeta):
             :class: tip
             
             ToUI uses `Flask` and its extenstions to create apps. When creating an instance of this class, the following
-            extension is used:
+            extensions are used:
 
             - `Sock` class extension from `Flask-Sock` package.
+            - `Cache` class extension from `Flask-Cache` package.
+
+            The following `Flask` configurations are also set:
+
+            - `CACHE_TYPE = "SimpleCache"`
 
         """
         self._functions = {}
@@ -229,9 +235,9 @@ class _App(metaclass=ABCMeta):
 
         """
         path_id = 0
-        while self._user_vars._get(f'toui-download-{path_id}'):
+        while self._cache.get(f'toui-download-{path_id}'):
             path_id += 1
-        self._user_vars._set(f'toui-download-{path_id}', filepath)
+        self._cache.set(f'toui-download-{path_id}', filepath)
         self.open_new_page(f"/toui-download-{path_id}", new=new)
 
     @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
@@ -394,7 +400,7 @@ class _App(metaclass=ABCMeta):
         user = self._user_cls.query.filter_by(username=username, password=password, **other_info).first()
         if user:
             login_user(user)
-            self._user_vars._set("user-id", user.id)
+            self._cache.set("user-id", user.id)
             return True
         else:
             return False
@@ -421,7 +427,7 @@ class _App(metaclass=ABCMeta):
         user = self._user_cls.query.filter_by(id=user_id, **other_info).first()
         if user:
             login_user(user)
-            self._user_vars._set("user-id", user_id)
+            self._cache.set("user-id", user_id)
             return True
         else:
             return False
@@ -432,7 +438,7 @@ class _App(metaclass=ABCMeta):
         A method that signs out the current user.
         """
         logout_user()
-        self._user_vars._del('user-id')
+        self._cache.set('user-id', None)
 
     @_ReqsChecker(['flask-sqlalchemy'])
     def username_exists(self, username):
@@ -573,7 +579,9 @@ class _App(metaclass=ABCMeta):
         self._socket.route("/toui-communicate")(self._communicate)
 
     def _add_user_vars(self):
-        self._user_vars = _UserVars(self)
+        self.flask_app.config["CACHE_TYPE"] = "SimpleCache"
+        self._cache = Cache(self.flask_app)
+        self._user_vars = _UserVars(self._cache)
 
     def _session_check(self):
         """This is a private function."""
@@ -584,14 +592,14 @@ class _App(metaclass=ABCMeta):
         if not "user page" in session.keys():
             session['user page'] = None
         if not "_user_id" in session.keys():
-            user_id = self._user_vars._get('user-id')
+            user_id = self._cache.get('user-id')
             if user_id:
                 session['_user_id'] = user_id
         return True
     
     def _download(self, path_id):
         debug(f"PATH: {path_id}")
-        file_to_download = self._user_vars._get(f'toui-download-{path_id}')
+        file_to_download = self._cache.get(f'toui-download-{path_id}')
         debug(f"File to download: {file_to_download}")
         if file_to_download:
             return send_file(file_to_download, as_attachment=True)
@@ -603,7 +611,6 @@ class _App(metaclass=ABCMeta):
             info("WebSocket validation returns `False`. No data should be sent or received.")
             return
         info(f'WebSocket connected: {ws.connected}')
-        ws.send(json.dumps({"func": "_setDefaults", "args": [], "kwargs": {"default-vars": self._user_vars._default_vars}}))
         while True:
             data_from_js = ws.receive()
             data_validation = self._validate_data(data_from_js)
@@ -662,78 +669,35 @@ class _FuncWithPage:
 class _UserVars(MutableMapping):
     """User-specific variables"""
 
-    def __init__(self, app) -> None:
-        self._app = app
-        self._default_vars = {}
+    def __init__(self, cache) -> None:
+        self._cache = cache
+        self._cache.set('toui-vars', {})
 
     def __getitem__(self, key):
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            return toui_vars[key]
-        else:
-            return self._default_vars.get(key)
+        return self._cache.get('toui-vars')[key]
     
     def __setitem__(self, key, value):
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            toui_vars[key] = value
-            self._app.get_user_page()._set_key_in_storage('toui-vars', toui_vars)
-        else:
-            self._default_vars[key] = value
+        toui_vars = self._cache.get('toui-vars')
+        toui_vars[key] = value
+        self._cache.set('toui-vars', toui_vars)
 
     def __delitem__(self, key: Any) -> None:
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            del toui_vars[key]
-            self._app.get_user_page()._set_key_in_storage('toui-vars', toui_vars)
-        else:
-            del self._default_vars[key]
+        toui_vars = self._cache.get('toui-vars')
+        del toui_vars[key]
+        self._cache.set('toui-vars', toui_vars)
 
     def __iter__(self):
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            for key in toui_vars:
-                yield key
-        else:
-            for key in self._default_vars:
-                yield key
+        for key in self._cache.get('toui-vars'):
+            yield key
 
     def __len__(self) -> int:
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            return len(toui_vars)
-        else:
-            return len(self._default_vars)
+        return len(self._cache.get('toui-vars'))
     
     def __getattr__(self, name: str) -> Any:
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            return getattr(toui_vars, name)
-        else:
-            return getattr(self._default_vars, name)
+        return getattr(self._cache.get('toui-vars'), name)
     
     def __repr__(self) -> str:
-        if self._app._session_check():
-            json_data = self._app.get_user_page()._get_key_from_storage('toui-vars')
-            toui_vars = json.loads(json_data)
-            return repr(toui_vars)
-        else:
-            return repr(self._default_vars)
-    
-    def _get(self, key):
-        self._app.get_user_page()._get_key_from_storage(key)
-    
-    def _set(self, key, value):
-        self._app.get_user_page()._set_key_in_storage(key, value)
-
-    def _del(self, key):
-        self._app.get_user_page()._del_key_in_storage(key)
+        return repr(self._cache.get('toui-vars'))
     
 
 class Website(_App):

@@ -10,7 +10,6 @@ const socket = new WebSocket(conn + '://' + location.host + '/toui-communicate')
 socket.addEventListener('message', ev => {
     _findAndExecute(ev.data)
   });
-
 const urlPath = location.pathname
 const _appType = "{app_type}"
 _touiFiles = {}
@@ -290,25 +289,6 @@ function _resizeEmbed(element) {
     element.style.width = element.contentWindow.document.body.scrollWidth + 1 + 'px'
 }
 
-function _getKey(kwargs) {
-    const value = localStorage.getItem(kwargs['key'])
-}
-
-function _setKey(kwargs) {
-    localStorage.setItem(kwargs['key'], kwargs['value'])
-}
-
-function _delKey(kwargs) {
-    localStorage.removeItem(kwargs['key'])
-}
-
-function _setDefaults(kwargs) {
-    const touiVars = localStorage.getItem(kwargs['key'])
-    if (touiVars == null) {
-        localStorage.setItem("toui-vars", kwargs['default-vars'])
-    }
-}
-
 function _findAndExecute(jsonString) {
     var instructions = JSON.parse(jsonString)
     var func = instructions['func']
@@ -345,18 +325,6 @@ function _findAndExecute(jsonString) {
     }
     if (func == "_saveFile") {
         _saveFile(kwargs)
-    }
-    if (func == "_getKey") {
-        _getKey(kwargs)
-    }
-    if (func == "_setKey") {
-        _setKey(kwargs)
-    }
-    if (func == "_delKey") {
-        _delKey(kwargs)
-    }
-    if (func == "_setDefaults") {
-        _setDefaults(kwargs)
     }
 }"""
 
