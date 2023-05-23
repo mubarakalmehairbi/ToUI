@@ -22,6 +22,7 @@ reqs_txt = \
 """beautifulsoup4==4.12.2
 Flask==2.2.5
 Flask_BasicAuth==0.2.0
+Flask_Session==0.4.1
 Flask_Caching==2.0.2
 Flask_Login==0.6.2
 flask_sock==0.6.0
