@@ -54,6 +54,27 @@ class _PageSignal(Signal):
         js_args = []
         js_kwargs = {"url": kwargs['url'], "new": kwargs['new']}
         return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+    
+    @staticmethod
+    def _get_key_from_storage(**kwargs):
+        js_func = "_getKey"
+        js_args = []
+        js_kwargs = {"key": kwargs['key']}
+        return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+    
+    @staticmethod
+    def _set_key_in_storage(**kwargs):
+        js_func = "_setKey"
+        js_args = []
+        js_kwargs = {"key": kwargs['key'], "value": kwargs['value']}
+        return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+    
+    @staticmethod
+    def _del_key_in_storage(**kwargs):
+        js_func = "_delKey"
+        js_args = []
+        js_kwargs = {"key": kwargs['key']}
+        return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
 
 
 class Page:
@@ -472,7 +493,7 @@ class Page:
             original_return = self._basic_view_func()
             session['user page'] = copy(self)
             try:
-                user_id = self._app._cache.get("user-id")
+                user_id = self._app._user_vars._get("user-id")
                 if user_id:
                     session['_user_id'] = user_id
                 new_return = func()
@@ -570,6 +591,18 @@ class Page:
         functions = self._get_functions()
         info(f'"{func_name}" called')
         return functions[func_name](*args)
+    
+    @_PageSignal(return_type="js")
+    def _get_key_from_storage(self, key):
+        return None
+    
+    @_PageSignal()
+    def _set_key_in_storage(self, key, value):
+        return
+    
+    @_PageSignal()
+    def _del_key_in_storage(self, key, value):
+        return
 
 
 if __name__ == "__main__":
