@@ -1,5 +1,10 @@
 ![ToUI Image](images/logo.png)
 
+![License](https://img.shields.io/github/license/mubarakalmehairbi/ToUI)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/toui)
+![Latest version](https://img.shields.io/pypi/v/toui)
+![Docs](https://img.shields.io/readthedocs/toui)
+
 # Overview
 ToUI is a Python package for creating user interfaces (websites and desktop apps)
 from HTML easily. No JavaScript knowledge is required, but some knowledge of HTML
