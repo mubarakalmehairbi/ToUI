@@ -22,8 +22,9 @@ For both web apps and desktop apps, ToUI uses Flask web framework, Flask-Sock fo
 ToUI uses pywebview for making desktop apps. To learn more about its security, please check this link: [pywebview docs](https://pywebview.flowrl.com/). Note that pywebview can create two types of apps: serverless apps or apps built by running a local web server. In the old versions of ToUI (version 1.x.x), it was creating serverless pywebview apps, but currently ToUI creates Flask-based apps.
 
 
-!!! warning "Warning"
-    The versions v2.0.1 to v2.4.0 contain a security vulnerability. You can read about it [here](https://github.com/mubarakalmehairbi/ToUI/security/advisories/GHSA-hh7j-pg39-q563).  Please use them with caution or upgrade to v2.4.1.
+> ⚠️ **Warning**
+> 
+> The versions v2.0.1 to v2.4.0 contain a security vulnerability. You can read about it [here](https://github.com/mubarakalmehairbi/ToUI/security/advisories/GHSA-hh7j-pg39-q563).  Please use them with caution or upgrade to v2.4.1.
 
 ## Instructions sent and received
 ToUI receives data from JavaScript in the form of a JSON object. Below, the types of JSON objects
