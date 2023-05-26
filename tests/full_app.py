@@ -1,7 +1,11 @@
 import sys
 import os
+import time
 sys.path.append("..")
 from toui import DesktopApp, Website, Page
+from toui._helpers import show_debug
+
+show_debug(True)
 
 ##################################################
 #
@@ -140,6 +144,14 @@ def get_itself(element):
     element.set_content("success")
 
 
+def quick_click():
+    pg = app.get_user_page()
+    count = int(pg.get_element("click-count").get_content()) + 1
+    pg.get_element("click-count").set_content(count)
+    files = pg.get_element("hidden-files-input").get_files()
+    time.sleep(0.5)
+
+
 def resize(w, h):
     window = app.get_user_page().get_window()
     if window:
@@ -162,6 +174,7 @@ home_page.get_element("colors").on("change", change_selected)
 home_page.get_element("get-selector").onclick(get_element_selector)
 home_page.get_elements(name="get-unique-selector")[0].onclick(get_unique_selector)
 home_page.get_element("get-itself").onclick(get_itself, return_itself=True)
+home_page.get_element("quick-click").onclick(quick_click)
 home_page.get_element("resize").onclick(resize, 1000, 1000, quotes=False)
 
 

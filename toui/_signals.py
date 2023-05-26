@@ -58,16 +58,34 @@ class Signal:
                     return
 
     def _send(self, signal):
+        msg_num = self.ws.msg_num = self.ws.msg_num + 1
+        signal['kwargs']['msg-num'] = msg_num
         self.ws.send(json.dumps(signal))
         debug(f"SENT: {signal}")
         if self.return_type == "js":
-            data_from_js = self.ws.receive()
-            debug(f"DATA RECEIVED")
-            data_validation = self.object._app._validate_data(data_from_js)
-            if not data_validation:
-                info("Data validation returns `False`. The data will not be used.")
-                return
-            data_dict = json.loads(data_from_js)
+            valid_message = False
+            while not valid_message:
+                data_from_js = self.ws.receive()
+                debug(f"DATA RECEIVED")
+                data_validation = self.object._app._validate_data(data_from_js)
+                if not data_validation:
+                    info("Data validation returns `False`. The data will not be used.")
+                    return
+                data_dict = json.loads(data_from_js)
+                if data_dict.get("msg-num") == msg_num:
+                    valid_message = True
+                else:
+                    if data_dict.get("type") == "page":
+                        debug("Adding to pending pages")
+                        self.ws.pending_pages.append(data_dict)
+                    else:
+                        self.ws.pending_messages[data_dict.get("msg-num")] = data_dict
+                    debug(f"Non-matching message number: {data_dict.get('msg-num')}, checking for other messages..")
+                    if msg_num in self.ws.pending_messages:
+                        data_dict = self.ws.pending_messages.pop(msg_num)
+                        valid_message = True
+                debug("Could not find message number")
+            debug(f"Message number: {msg_num} found")
             debug(f"RECEIVED DATA KEYS: {list(data_dict.keys())}")
             if data_dict['type'] == "files":
                 files = []

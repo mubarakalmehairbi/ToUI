@@ -145,7 +145,7 @@ async function _getFiles(kwargs) {
             files.push(fileJSON)
         }
     }
-    var jsonString = JSON.stringify({data: files, type: "files"})
+    var jsonString = JSON.stringify({data: files, type: "files", "msg-num": kwargs["msg-num"]})
     var dataSent = _send(jsonString)
     return dataSent
 }

@@ -621,43 +621,57 @@ class _App(metaclass=ABCMeta):
             info("WebSocket validation returns `False`. No data should be sent or received.")
             return
         info(f'WebSocket connected: {ws.connected}')
+        ws.msg_num = 0
+        ws.pending_messages = {}
+        ws.pending_pages = []
         while True:
-            data_from_js = ws.receive()
-            data_validation = self._validate_data(data_from_js)
-            if not data_validation:
-                info("Data validation returns `False`. The data will not be used.")
-                continue
-            s = time.time()
-            self._session_check()
-            data_dict = json.loads(data_from_js)
-            func = data_dict['func']
-            args = data_dict['args']
-            url = data_dict['url']
-            new_html = data_dict['html']
-            new_page = Page(url=url)
-            new_page.from_str(new_html)
-            new_page._app = self
-            new_page._signal_mode = True
-            new_page._ws = ws
-            new_page._inherit_functions()
-            selector_to_element = data_dict['selector-to-element']
-            if selector_to_element:
-                for index, arg in enumerate(args):
-                    if type(arg) is dict:
-                        if arg.get('type') == "element":
-                            args[index] = new_page.get_element_from_selector(arg['selector'])
-            if "uid" in data_dict:
-                new_page._uid = data_dict['uid']
-            session['user page'] = new_page
-            try:
-                if new_page._func_exists(func):
-                    new_page._call_func(func, *args)
-                del session['user page']
-            except Exception as e:
-                del session['user page']
-                raise e
-            e = time.time()
-            debug(f"TIME: {e - s}s")
+            valid_message = False
+            while not valid_message:
+                data_from_js = ws.receive()
+                data_validation = self._validate_data(data_from_js)
+                if not data_validation:
+                    info("Data validation returns `False`. The data will not be used.")
+                    continue
+                s = time.time()
+                data_dict = json.loads(data_from_js)
+                if data_dict.get("type") == "page":
+                    ws.pending_pages.append(data_dict)
+                    valid_message = True
+            while True:
+                debug(f"Pages Before: {len(ws.pending_pages)}")
+                if len(ws.pending_pages) == 0:
+                    break
+                data_dict = ws.pending_pages.pop(0)
+                debug(f"Pages After: {len(ws.pending_pages)}")
+                self._session_check()
+                func = data_dict['func']
+                args = data_dict['args']
+                url = data_dict['url']
+                new_html = data_dict['html']
+                new_page = Page(url=url)
+                new_page.from_str(new_html)
+                new_page._app = self
+                new_page._signal_mode = True
+                new_page._ws = ws
+                new_page._inherit_functions()
+                selector_to_element = data_dict['selector-to-element']
+                if selector_to_element:
+                    for index, arg in enumerate(args):
+                        if type(arg) is dict:
+                            if arg.get('type') == "element":
+                                args[index] = new_page.get_element_from_selector(arg['selector'])
+                if "uid" in data_dict:
+                    new_page._uid = data_dict['uid']
+                session['user page'] = new_page
+                try:
+                    if new_page._func_exists(func):
+                        new_page._call_func(func, *args)
+                    del session['user page']
+                except Exception as e:
+                    del session['user page']
+                    raise e
+                e = time.time()
+                debug(f"TIME: {e - s}s")
 
     def _confirm_user_database_created(self):
         if self._user_cls is None:
@@ -948,7 +962,7 @@ def set_global_app(app):
     _global_app = app
 
 
-def get_global_app():
+def get_global_app() -> _App:
     """
     Gets the shared app object.
 

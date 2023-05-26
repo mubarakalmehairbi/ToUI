@@ -56,3 +56,9 @@ def obj_converter(obj):
     if obj is None:
         return 'null'
     return obj
+
+def show_debug(bool=True):
+    if bool:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
