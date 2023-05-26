@@ -45,23 +45,24 @@ The most important JSON object. It contains the following keys:
 If one of the argument is an HTML element, it will be converted to a JSON that contains its CSS selector:
 ```json
 {"type": "element",
- "selector": ...,
+ "selector": ...}
 ```
 
 #### Files information JSON
 Another type of JSON object is a JSON that contains uploaded files:
 ```json
 {"type": "files",
- "files": ...}
+ "files": ...,
+ "msg-num": ...}
 ```
-`files` is a list of JSON objects that contain some information about each file:
+`msg-num` is the ID of message, `files` is a list of JSON objects that contain some information about each file:
 ```json
 {"name": ...,
  "size": ...,
  "file-type": ...,
  "last-modified": ...,
  "selector": ...,
- "file-id": ...}
+ "file-id": ...
 ```
 `name` is the file name without the path, `size` is the size of file, `file-type` is the type of file, `last-modified` is the last modified date as the number of milliseconds since the Unix epoch (January 1, 1970 at midnight). `selector` is the CSS selector for the element that was used to upload the files (`<input type="file">`). ToUI gives every uploaded file an id which is `file-id`. Depending on whether the user asks for the content or not, the JSON might include the key `content` which contains the content of the file.
 
@@ -70,7 +71,8 @@ This JSON object is received after the user asks for a certain file to be saved 
 ```javascript
 {"type": "save files",
  "data": ...,
- "end": ...}
+ "end": ...,
+ "msg-num": ...}
 ```
 For every file saved, ToUI might receive this JSON object more than once. Each JSON object will contain a part of the file content which is stored in the `data` key. `data` includes either a string or a list. `end` is `false` until all the file content has been sent to ToUI.
 

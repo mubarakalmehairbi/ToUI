@@ -151,15 +151,15 @@ class File:
         js_kwargs['file-id'] = self._id
         js_kwargs['binary'] = self.is_binary
         signal = {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
+
+        msg_num = self._ws.msg_num = self._ws.msg_num + 1
+        signal['kwargs']['msg-num'] = msg_num
         self._ws.send(json.dumps(signal))
         debug(f"SENT: {signal}")
         while True:
-            data_from_js = self._ws.receive()
-            data_validation = self._app._validate_data(data_from_js)
-            if not data_validation:
-                info("Data validation returns `False`. The data will not be used.")
-                return
-            data_dict = json.loads(data_from_js)
+            data_dict = self._get_valid_message(msg_num)
+            if data_dict is None:
+                break
             data = data_dict['data']
             if self.is_binary:
                 data = bytearray(data)
@@ -169,6 +169,32 @@ class File:
 
     def __repr__(self):
         return f"<File {self.name}>"
+    
+    def _get_valid_message(self, msg_num):
+        valid_message = False
+        data_dict = None
+        while not valid_message:
+            data_from_js = self._ws.receive()
+            debug(f"DATA RECEIVED")
+            data_validation = self._app._validate_data(data_from_js)
+            if not data_validation:
+                info("Data validation returns `False`. The data will not be used.")
+                return
+            data_dict = json.loads(data_from_js)
+            if data_dict.get("msg-num") == msg_num:
+                valid_message = True
+            else:
+                if data_dict.get("type") == "page":
+                    debug("Adding to pending pages")
+                    self._ws.pending_pages.append(data_dict)
+                else:
+                    self._ws.pending_messages[data_dict.get("msg-num")] = data_dict
+                debug(f"Non-matching message number: {data_dict.get('msg-num')}, checking for other messages..")
+                if msg_num in self._ws.pending_messages:
+                    data_dict = self._ws.pending_messages.pop(msg_num)
+                    valid_message = True
+        debug(f"Message number: {msg_num} found")
+        return data_dict
 
     def save(self, stream):
         """

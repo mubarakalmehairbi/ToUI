@@ -164,10 +164,11 @@ async function _saveFile(kwargs) {
                 var smallerContent = [...content.slice(i, i + lengthPerPart)]
                 var jsonString = JSON.stringify({type: "save files",
                                                   data: smallerContent,
-                                                  end: false})
+                                                  end: false,
+                                                  "msg-num": kwargs["msg-num"]})
                 var dataSent = _send(jsonString)
             }
-            var jsonString = JSON.stringify({type: "save files", data: [],
+            var jsonString = JSON.stringify({type: "save files", data: [], "msg-num": kwargs["msg-num"],
                                               end: true})
             var dataSent = _send(jsonString)
         }
@@ -181,10 +182,11 @@ async function _saveFile(kwargs) {
                 var smallerContent = content.substring(i, i + lengthPerPart)
                 var jsonString = JSON.stringify({type: "save files",
                                                   data: smallerContent,
+                                                  "msg-num": kwargs["msg-num"],
                                                   end: false})
                 var dataSent = _send(jsonString)
             }
-            var jsonString = JSON.stringify({type: "save files", data: "",
+            var jsonString = JSON.stringify({type: "save files", data: "", "msg-num": kwargs["msg-num"],
                                               end: true})
             var dataSent = _send(jsonString)
         }

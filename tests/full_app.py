@@ -116,7 +116,8 @@ def upload_file():
         if os.path.exists(name):
             print("File already exists")
             return
-        with open(name, "w") as stream:
+        with open(name, "wb") as stream:
+            file.is_binary = True
             file.save(stream)
     pg.get_element("file-upload-status").set_content(f"File '{name}' uploaded.")
 
