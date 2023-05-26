@@ -1,4 +1,4 @@
-![ToUI Image](images/logo.png)
+![ToUI Image](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/logo.png?raw=True)
 
 ![License](https://img.shields.io/github/license/mubarakalmehairbi/ToUI)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/toui)
