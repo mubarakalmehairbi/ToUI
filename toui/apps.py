@@ -585,6 +585,7 @@ class _App(metaclass=ABCMeta):
         self.flask_app.register_blueprint(blueprint=blueprint, **options)
 
     def _add_communication_method(self):
+        self.flask_app.config['SOCK_SERVER_OPTIONS'] = {'ping_interval': 25}
         self._socket = Sock(self.flask_app)
         self._socket.route("/toui-communicate")(self._communicate)
 
