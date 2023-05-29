@@ -481,10 +481,15 @@ class Element:
 
         This method is useful when uploading files using ``<input type="file">`` element.
 
+        Note
+        ----
+        Remember to validate the names, types, and sizes of the uploaded files before using them.
+
         Parameters
         ----------
         with_content: bool, default=False
-            If ``True``, the contents of the files will be included in the output.
+            If ``True``, the contents of the files will be included in the output. It is recommended to keep this parameter
+            as ``False`` and use :py:meth:`File.save() <toui._signals.File.save>` instead after validating the files.
 
         Returns
         -------

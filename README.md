@@ -83,6 +83,9 @@ flask_app = app.flask_app
 ```
 Then you need to deploy the `flask_app` and not the `app`.
 
+# How to contribute
+ToUI welcomes contribution, small or big. For anyone who wants to contribute please check the [contribution page](https://toui.readthedocs.io/en/latest/CONTRIBUTING.html).
+
 # License and Copyrights
 Copyrights (c) 2023 Mubarak Almehairbi.
 This package is licensed under the MIT license.

@@ -175,6 +175,11 @@ class Page:
         """
         Converts HTML code to a `Page` object.
 
+        Warning
+        -------
+        If this method is called after the app starts running, it will call the JavaScript function `document.write()`. This
+        might lead to potential security issues so use it with care.
+
         Parameters
         ----------
         html_str: str
@@ -197,6 +202,11 @@ class Page:
     def from_html_file(self, html_path):
         """
         Reads an HTML file and converts it to an `Page` object.
+
+        Warning
+        -------
+        If this method is called after the app starts running, it will call the JavaScript function `document.write()`. This
+        might lead to potential security issues so use it with care.
 
         Parameters
         ----------
@@ -223,6 +233,11 @@ class Page:
         """
         Converts a `bs4.BeautifulSoap` object to a `Page` object.
         The `bs4.BeautifulSoap` object will be copied before converting.
+
+        Warning
+        -------
+        If this method is called after the app starts running, it will call the JavaScript function `document.write()`. This
+        might lead to potential security issues so use it with care.
 
         Parameters
         ----------
