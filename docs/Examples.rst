@@ -10,6 +10,7 @@ Basic examples
    :maxdepth: 1
 
    Examples.advanced_example_1_toui_blueprint
+   Examples.advanced_example_2_toui_with_javascript
    Examples.example_1_simple_website
    Examples.example_2_simple_desktop_app
    Examples.example_3_updating_page
@@ -30,3 +31,4 @@ Advanced examples
    :maxdepth: 1
 
    Examples.advanced_example_1_toui_blueprint
+   Examples.advanced_example_2_toui_with_javascript
