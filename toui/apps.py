@@ -4,18 +4,17 @@ A module that creates web apps and desktop apps.
 import __main__
 import threading
 import json
-import inspect
+import hashlib
 import time
 import os
 from copy import copy
 from abc import ABCMeta, abstractmethod
+from collections import UserDict
 from collections.abc import MutableMapping
 from functools import wraps
 from typing import Any
 from flask import Flask, session, request, send_file
 from flask_sock import Sock
-from flask_caching import Cache
-from flask_session import Session
 import webview
 from toui._helpers import warn, info, debug, error
 from toui.pages import Page
@@ -61,7 +60,7 @@ class _ReqsChecker:
 class _App(metaclass=ABCMeta):
     """The base class for DesktopApp and Website"""
 
-    def __init__(self, name=None, assets_folder=None, secret_key=None):
+    def __init__(self, name=None, assets_folder=None, secret_key=None, vars_timeout=86400, gen_sid_algo=None):
         """
 
         Parameters
@@ -76,6 +75,14 @@ class _App(metaclass=ABCMeta):
             Sets the `secret_key` attribute for `flask.Flask`. You can also set the environment variable SECRET_KEY from
             the command line and ToUI will get it using `os.environ`.
 
+        vars_timeout: int (optional)
+            The timeout interval before the temporary user-specific variables are deleted from `user_vars` attribute.
+            The default is 86400 seconds (1 day).
+
+        gen_sid_algo: Callable (optional)
+            A callable that generates a unique user id so that ToUI can store data for each user/browser. If ``None``, the
+            IP address, user agent, and secret key will be used.
+
             
         Attributes
         ----------
@@ -86,16 +93,10 @@ class _App(metaclass=ABCMeta):
             These are URLs that ToUI does not allow the user to use because ToUI uses them.
 
         user_vars: dict
-            A dictionary that stores temporary data unique to each user. The data are stored in a `Cache` object from `flask-caching`
-            package.
+            A dictionary that stores temporary data unique to each user.
 
         pages: list
             A list of added `Page` objects.
-
-
-        Warning
-        -------
-        A folder called 'flask_session' will be created in the main directory when calling this class.
 
 
         .. admonition:: Behind The Scenes
@@ -104,14 +105,7 @@ class _App(metaclass=ABCMeta):
             ToUI uses `Flask` and its extenstions to create apps. When creating an instance of this class, the following
             extensions are used:
 
-            - `Session` class extension from `Flask-Session` package.
             - `Sock` class extension from `Flask-Sock` package.
-            - `Cache` class extension from `Flask-Caching` package.
-
-            The following `Flask` configurations are also set:
-
-            - `CACHE_TYPE = "SimpleCache"`
-            - `SESSION_TYPE = "filesystem"`
 
         """
         self._functions = {}
@@ -131,10 +125,8 @@ class _App(metaclass=ABCMeta):
             warn("No secret key was set. Generating a random secret key for Flask.")
             self.flask_app.secret_key = os.urandom(50)
         self.pages = []
-        self.flask_app.config['SESSION_TYPE'] = "filesystem"
-        Session(self.flask_app)
         self._add_communication_method()
-        self._add_user_vars()
+        self._add_user_vars(timeout_interval=vars_timeout, gen_sid_algo=gen_sid_algo)
         self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
         self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>"]
         self._validate_ws = validate_ws
@@ -256,7 +248,8 @@ class _App(metaclass=ABCMeta):
         Creates a simple database that has data specific to each user.
 
         The database is a table that contains the following columns: `username`, `password`, and `id`. To add other columns,
-        add their names in `other_columns` list.
+        add their names in `other_columns` list.  Note that this is different from `user_vars` which is a stores temporary
+        data without the need to sign in.
 
         Parameters
         ----------
@@ -589,10 +582,8 @@ class _App(metaclass=ABCMeta):
         self._socket = Sock(self.flask_app)
         self._socket.route("/toui-communicate")(self._communicate)
 
-    def _add_user_vars(self):
-        self.flask_app.config["CACHE_TYPE"] = "SimpleCache"
-        self._cache = Cache(self.flask_app)
-        self._user_vars = _UserVars(self._cache)
+    def _add_user_vars(self, timeout_interval, gen_sid_algo):
+        self._user_vars = _UserVars(self, timeout_interval=timeout_interval, gen_sid_algo=gen_sid_algo)
 
     def _session_check(self):
         """This is a private function."""
@@ -694,21 +685,36 @@ class _FuncWithPage:
 class _UserVars(MutableMapping):
     """User-specific variables"""
 
-    def __init__(self, cache) -> None:
-        self._cache = cache
+    def __init__(self, app, timeout_interval, gen_sid_algo) -> None:
+        self._app = app
+        self._cache = UserDict()
+        self._cache.set = self._cache.__setitem__
         self._default_vars = {}
+        self._timeout_interval = timeout_interval
+        if gen_sid_algo:
+            self._gen_sid = gen_sid_algo
+
+    def _gen_sid(self):
+        try:
+            ip_addr = request.remote_addr
+            user_agent = request.user_agent
+            secret_key = self._app.flask_app.secret_key
+            sid = hashlib.sha256(f"{ip_addr}{user_agent}{secret_key}".encode()).hexdigest()
+            return sid
+        except RuntimeError:
+            return None
+        
+    def _timeout(self, sid):
+        self._cache.delete(sid)
 
     def _sid_check(self):
-        try:
-            session.keys()
-            session_exists = True
-        except:
-            session_exists = False
-        if session_exists:
-            user_dict = self._cache.get(session.sid)
+        sid = self._gen_sid()
+        if sid:
+            user_dict = self._cache.get(sid)
             if user_dict is None:
-                self._cache.set(session.sid, {"toui-vars": self._default_vars})
-            return session.sid
+                self._cache.set(sid, {"toui-vars": self._default_vars})
+                threading.Timer(self._timeout_interval, self._timeout, args=[sid]).start()
+            return sid
 
     def _get_toui_vars(self):
         sid = self._sid_check()
@@ -716,30 +722,30 @@ class _UserVars(MutableMapping):
             return self._cache.get(sid)['toui-vars']
         else:
             return self._default_vars
-    
-    def _set_toui_vars(self, toui_vars):
-        sid = self._sid_check()
-        if sid:
-            self._cache.set(session.sid, {'toui-vars': toui_vars})
-        else:
-            self._default_vars = toui_vars
 
     def _get(self, key):
-        self._sid_check()
-        return self._cache.get(session.sid).get(key)
+        sid = self._sid_check()
+        if sid:
+            return self._cache.get(sid).get(key)
+        else:
+            return self._default_vars
     
     def _set(self, key, value):
         """Avoid key='toui-vars'"""
-        self._sid_check()
-        sid_dict = self._cache.get(session.sid)
-        sid_dict[key] = value
-        self._cache.set(session.sid, sid_dict)
+        sid = self._sid_check()
+        if sid:
+            sid_dict = self._cache.get(sid)
+            sid_dict[key] = value
+        else:
+            self._default_vars[key] = value
 
     def _del(self, key):
-        self._sid_check()
-        sid_dict = self._cache.get(session.sid)
-        del sid_dict[key]
-        self._cache.set(session.sid, sid_dict)
+        sid = self._sid_check()
+        if sid:
+            sid_dict = self._cache.get(sid)
+            del sid_dict[key]
+        else:
+            del self._default_vars[key]
 
     def __getitem__(self, key):
         return self._get_toui_vars()[key]
@@ -747,12 +753,10 @@ class _UserVars(MutableMapping):
     def __setitem__(self, key, value):
         toui_vars = self._get_toui_vars()
         toui_vars[key] = value
-        self._set_toui_vars(toui_vars)
 
     def __delitem__(self, key: Any) -> None:
         toui_vars = self._get_toui_vars()
         del toui_vars[key]
-        self._set_toui_vars(toui_vars)
 
     def __iter__(self):
         for key in self._get_toui_vars():
