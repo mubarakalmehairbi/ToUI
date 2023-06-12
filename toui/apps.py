@@ -4,7 +4,7 @@ A module that creates web apps and desktop apps.
 import __main__
 import threading
 import json
-import hashlib
+import uuid
 import time
 import os
 from copy import copy
@@ -13,7 +13,7 @@ from collections import UserDict
 from collections.abc import MutableMapping
 from functools import wraps
 from typing import Any
-from flask import Flask, session, request, send_file
+from flask import Flask, session, request, send_file, make_response
 from flask_sock import Sock
 import webview
 from toui._helpers import warn, info, debug, error
@@ -696,10 +696,18 @@ class _UserVars(MutableMapping):
 
     def _gen_sid(self):
         try:
-            ip_addr = request.remote_addr
-            user_agent = request.user_agent
-            secret_key = self._app.flask_app.secret_key
-            sid = hashlib.sha256(f"{ip_addr}{user_agent}{secret_key}".encode()).hexdigest()
+            if request.cookies.get('TOUI_SID'):
+                sid = request.cookies.get('TOUI_SID')
+                session['toui-sid'] = sid
+            else:
+                if "toui-sid" in session:
+                    sid = session['toui-sid']
+                else:
+                    sid = str(uuid.uuid4())
+                    session['toui-sid'] = sid
+                response = make_response()
+                response.set_cookie("TOUI_SID", sid, secure=True, httponly=True)
+                session['toui-response'] = response
             return sid
         except RuntimeError:
             return None
@@ -712,7 +720,7 @@ class _UserVars(MutableMapping):
         if sid:
             user_dict = self._cache.get(sid)
             if user_dict is None:
-                self._cache.set(sid, {"toui-vars": self._default_vars})
+                self._cache.set(sid, {"toui-vars": self._default_vars.copy()})
                 threading.Timer(self._timeout_interval, self._timeout, args=[sid]).start()
             return sid
 

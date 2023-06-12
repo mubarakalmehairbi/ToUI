@@ -6,13 +6,12 @@ import time
 from bs4 import BeautifulSoup
 import webview
 import json
-from flask import session
+from flask import session, make_response
 from toui.elements import Element
 from toui._javascript_templates import custom_func, get_script
 from copy import copy
 from toui._helpers import warn, info, debug, selector_to_str, obj_converter
 from toui._signals import Signal
-from toui._defaults import view_func
 
 
 class _PageSignal(Signal):
@@ -153,8 +152,7 @@ class Page:
         self._signal_mode = False
         self._signals = []
         self._functions = {}
-        self._basic_view_func = lambda: view_func(self)
-        self._view_func = self._basic_view_func
+        self._view_func = self._on_url_request
         self._uid = None
 
     def __str__(self):
@@ -483,32 +481,36 @@ class Page:
             the return value will be ignored.
 
         """
-        def new_func():
-            original_return = self._basic_view_func()
-            session['user page'] = copy(self)
-            try:
-                user_id = self._app._user_vars._get("user-id")
-                if user_id:
-                    session['_user_id'] = user_id
-                new_return = func()
-                if display_return_value:
-                    del session['user page']
-                    return new_return
-                else:
-                    pg = session['user page']
-                    del session['user page']
-                    return pg.to_str()
-            except Exception as e:
-                if 'user page' in session:
-                    del session['user page']
-                raise e
-
+        new_func = lambda: self._on_url_request(func=func, display_return_value=display_return_value)
         self._view_func = new_func
 
     def get_window(self):
         for window in webview.windows:
             if window.uid == self._uid:
                 return window
+            
+    def _on_url_request(self, func=None, display_return_value=False):
+        self._app._user_vars._gen_sid()
+        session['user page'] = copy(self)
+        try:
+            if func:
+                new_return = func()
+                if display_return_value:
+                    del session['user page']
+                    if "toui-response" in session:
+                        return session['toui-response']
+                    else:   
+                        return new_return
+            pg = session['user page']
+            del session['user page']
+            if "toui-response" in session:
+                return session['toui-response']
+            else:   
+                return pg.to_str()
+        except Exception as e:
+            if 'user page' in session:
+                del session['user page']
+            raise e
 
     def _add_script(self):
         script_tag = Element("script")

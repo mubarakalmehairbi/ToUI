@@ -11,7 +11,3 @@ def validate_ws(ws):
 def validate_data(data):
     """The default function for validating data received from JavaScript inside `Website`."""
     return True
-
-
-def view_func(self):
-    return self.to_str()

@@ -135,10 +135,10 @@ class Element:
         soup = BeautifulSoup(html_str, features="html.parser")
         tags = soup.find_all()
         if len(tags) > 0:
-            tag = tags[0]
-            self._element = tag
+            new = tags[0]
         else:
-            warn("No element found in string")
+            new = html_str
+        self._element.replace_with(new)
 
     def to_str(self):
         """
