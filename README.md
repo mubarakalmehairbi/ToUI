@@ -6,7 +6,7 @@
 ![Docs](https://img.shields.io/readthedocs/toui)
 
 # Overview
-ToUI is a Python framework for creating user interfaces (websites and desktop apps)
+ToUI is a Python framework for creating user interfaces (web apps and desktop apps)
 from HTML (and CSS) code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML
 is usually required.
 
