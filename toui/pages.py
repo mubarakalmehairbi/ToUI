@@ -537,6 +537,8 @@ class Page:
         except Exception as e:
             if 'user page' in session:
                 del session['user page']
+            if 'toui-response' in session:
+                del session['toui-response']
             raise e
 
     def _add_script(self):
