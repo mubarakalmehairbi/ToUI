@@ -600,9 +600,7 @@ class _App(metaclass=ABCMeta):
         return True
     
     def _download(self, path_id):
-        debug(f"PATH: {path_id}")
         file_to_download = self._user_vars._get(f'toui-download-{path_id}')
-        debug(f"File to download: {file_to_download}")
         if file_to_download:
             return send_file(file_to_download, as_attachment=True)
 
@@ -630,11 +628,9 @@ class _App(metaclass=ABCMeta):
                     ws.pending_pages.append(data_dict)
                     valid_message = True
             while True:
-                debug(f"Pages Before: {len(ws.pending_pages)}")
                 if len(ws.pending_pages) == 0:
                     break
                 data_dict = ws.pending_pages.pop(0)
-                debug(f"Pages After: {len(ws.pending_pages)}")
                 self._session_check()
                 func = data_dict['func']
                 args = data_dict['args']

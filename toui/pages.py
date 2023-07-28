@@ -154,6 +154,7 @@ class Page:
         self._functions = {}
         self._view_func = self._on_url_request
         self._uid = None
+        self._navigation_bar = ""
 
     def __str__(self):
         return self.to_str()
@@ -165,6 +166,7 @@ class Page:
         new_pg = Page(html_file=self._html_file, url=self.url)
         new_pg.from_bs4_soup(self.to_bs4_soup())
         new_pg._signal_mode = self._signal_mode
+        new_pg._navigation_bar = self._navigation_bar
         new_pg._app = self._app
         return new_pg
     
@@ -484,6 +486,22 @@ class Page:
         new_func = lambda: self._on_url_request(func=func, display_return_value=display_return_value)
         self._view_func = new_func
 
+    def set_navigation_bar(self, html_str):
+        """
+        Adds a navigation bar to the page.
+
+        Parameters
+        ----------
+        html_str: str
+            HTML code of the navigation bar.
+
+        Returns
+        -------
+        None
+
+        """
+        self._navigation_bar = html_str
+
     def get_window(self):
         for window in webview.windows:
             if window.uid == self._uid:
@@ -498,14 +516,23 @@ class Page:
                 if display_return_value:
                     del session['user page']
                     if "toui-response" in session:
-                        return session['toui-response']
+                        response = session['toui-response']
+                        del session['toui-response']
+                        return response
                     else:   
                         return new_return
             pg = session['user page']
             del session['user page']
             if "toui-response" in session:
-                return session['toui-response']
-            else:   
+                response = session['toui-response']
+                del session['toui-response']
+                return response
+            else:
+                body_element = pg.get_body_element()
+                if body_element:
+                    body_element.set_content(pg._navigation_bar + body_element.to_str()) 
+                else:
+                    pg.from_str(pg._navigation_bar + pg.to_str())
                 return pg.to_str()
         except Exception as e:
             if 'user page' in session:
