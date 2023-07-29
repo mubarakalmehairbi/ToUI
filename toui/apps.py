@@ -270,8 +270,7 @@ class _App(metaclass=ABCMeta):
             The Firebase configuration dictionary or the path of credentials JSON.
 
         options (optional)
-            Extra options for initializing Firebase. Check the documentation of ``firebase_admin.initialize_app`` for more details.
-
+            Extra options for initializing Firebase. See `Google's documentation <https://firebase.google.com/docs/reference/admin/python/firebase_admin#initialize_app>`_.
         """
         certificate = firebase_admin.credentials.Certificate(firebase_config)
         self._firebase_app = firebase_admin.initialize_app(certificate, options)
@@ -403,6 +402,7 @@ class _App(metaclass=ABCMeta):
         -------
         A collection called `users` will be created in the database. If you already have a collection with the same name, it might be overwritten.
 
+        
         .. admonition:: Behind The Scenes
             :class: tip
             
@@ -709,9 +709,15 @@ class _App(metaclass=ABCMeta):
     def is_signed_in(self):
         """
         Checks if the user is signed in.
+
+        Returns
+        -------
+        bool
         """
         self._confirm_user_database_created()
         if self.user_vars._get('user-id'):
+            if self._user_db_type == "sql":
+                login_user(self._user_cls.query.filter_by(id=self._user_vars._get("user-id")).first())
             return True
         else:
             return False
@@ -721,7 +727,7 @@ class _App(metaclass=ABCMeta):
         Signs in a user using Google (Experimental).
 
         Make sure to create a Google app first. Also, add the following as an authorized redirect URI to your Google app:
-        `https://<your-domain>/toui-google-sign-in`
+        ``https://<your-domain>/toui-google-sign-in``
         
         Parameters
         ----------
@@ -735,16 +741,14 @@ class _App(metaclass=ABCMeta):
             The URL to redirect to after completing authentication. This is not the same as the redirect uri of the Google app, so
             you do not need to register it as an authorized redirect URI in your Google app.
 
-        Optional Parameters
-        -------------------
-        additional_scopes: list, default=None
+        additional_scopes: list, default=None (optional)
             By default, the user allows the app to only access non-sensitive information such as the user's name and email. If you
             want to access more information, you can pass a list of scopes. For more information, see `Google's documentation <https://developers.google.com/identity/protocols/oauth2/scopes>`_.
 
-        custom_username: str, default=None
+        custom_username: str, default=None (optional)
             If you want to use a custom username instead of the user's email, you can pass it here.
 
-        other_params (optional)
+        other_params: kwargs (optional)
             Keyword arguments that can be passed as parameters to authorization url.For more information, see
             `Google's documentation <https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1>`_.
         """
@@ -1118,9 +1122,11 @@ class _UserVars(MutableMapping):
         sid = self._sid_check()
         if sid:
             sid_dict = self._cache.get(sid)
-            del sid_dict[key]
+            if key in sid_dict:
+                del sid_dict[key]
         else:
-            del self._default_vars[key]
+            if key in self._default_vars:
+                del self._default_vars[key]
 
     def __getitem__(self, key):
         return self._get_toui_vars()[key]

@@ -28,6 +28,11 @@ Run this command:
 ```shell
 pip install toui
 ```
+To install only the required dependencies, run these commands:
+```shell
+pip install --no-deps toui
+toui --minimal-reqs
+```
 
 # How to create a basic website
 Import the required classes:
@@ -76,6 +81,13 @@ app.add_pages(main_page)
 if __name__ == "__main__":
     app.run()
 ```
+
+# Start with a template
+To start with a basic template for a ToUI project. Run the command:
+```
+toui init
+```
+Alternatively, use this [template](https://github.com/mubarakalmehairbi/BasicToUIProject).
 
 # Make the app responsive
 Check this [example](https://toui.readthedocs.io/en/latest/Examples.example_1_simple_website.html)

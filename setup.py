@@ -18,17 +18,8 @@ package_name = "toui"
 requirements = []
 optional_requirements = ['flask-login', 'flask-sqlalchemy', 'flask-basicauth']
 
-reqs_txt = \
-"""beautifulsoup4==4.12.2
-Flask==2.2.5
-Flask_BasicAuth==0.2.0
-Flask_Session==0.4.1
-Flask_Caching==2.0.2
-Flask_Login==0.6.2
-flask_sock==0.6.0
-flask_sqlalchemy==3.0.3
-pywebview==4.1
-tinycss==0.4"""
+reqs_txt = open("requirements.txt", "r").read()
+reqs_txt += "\n" + open("optional_requirements.txt", "r").read()
 
 for pkg in reqs_txt.splitlines():
     pkg_name = pkg.split("==")[0]
@@ -50,6 +41,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     package_data={'images': ['images/*']},
+    entry_points={'console_scripts': ['toui=toui._cmd:main']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

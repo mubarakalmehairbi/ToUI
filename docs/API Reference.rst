@@ -30,6 +30,7 @@ Other classes
    toui.elements.IFrameElement
    toui._signals.File
    toui.structure.ToUIBlueprint
+   toui.pages.RedirectingPage
 
 
 

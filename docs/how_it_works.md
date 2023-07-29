@@ -13,8 +13,6 @@ For desktop applications, ToUI uses also [pywebview](https://pywebview.flowrl.co
 For both web apps and desktop apps, ToUI uses Flask web framework, Flask-Sock for communicating through WebSockets, and other flask extensions. To know more about the security of these Python packages, please find their documentations below:
 - [Flask docs](https://flask.palletsprojects.com/)
 - [Flask-Sock docs](https://flask-sock.readthedocs.io/en/latest/)
-- [Flask-Session docs](https://flask-session.readthedocs.io/en/latest/)
-- [Flask-Caching docs](https://flask-caching.readthedocs.io/en/latest/)
 - [Flask-BasicAuth docs](https://flask-basicauth.readthedocs.io/en/latest/)
 - [Flask-Login docs](https://flask-login.readthedocs.io/en/latest/)
 - [Flask-SQLAlchemy docs](https://flask-sqlalchemy.palletsprojects.com/)

@@ -1,0 +1,4 @@
+flask_sqlalchemy==3.0.3
+Flask_BasicAuth==0.2.0
+Flask_Login==0.6.2
+firebase_admin==6.2.0
