@@ -4,8 +4,9 @@ A module that creates HTML elements.
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from copy import copy
+from typing import List
 import tinycss
-from toui._signals import Signal
+from toui._signals import Signal, File
 from toui._helpers import warn, debug, selector_to_str, obj_converter
 
 
@@ -475,7 +476,7 @@ class Element:
         self.set_attr("value", value)
 
     @_ElementSignal(return_type="js")
-    def get_files(self, with_content=False):
+    def get_files(self, with_content=False) -> List[File]:
         """
         Gets uploaded files from element.
 

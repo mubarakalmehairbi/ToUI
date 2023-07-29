@@ -6,7 +6,7 @@ import time
 from bs4 import BeautifulSoup
 import webview
 import json
-from flask import session, make_response
+from flask import session, redirect, request, Response
 from toui.elements import Element
 from toui._javascript_templates import custom_func, get_script
 from copy import copy
@@ -517,22 +517,27 @@ class Page:
                     del session['user page']
                     if "toui-response" in session:
                         response = session['toui-response']
+                        if isinstance(new_return, Response):
+                            response.set_data(new_return.get_data())
+                        else:
+                            response.set_data(new_return)
                         del session['toui-response']
                         return response
                     else:   
                         return new_return
             pg = session['user page']
+            body_element = pg.get_body_element()
+            if body_element:
+                body_element.set_content(pg._navigation_bar + body_element.to_str()) 
+            else:
+                pg.from_str(pg._navigation_bar + pg.to_str())
             del session['user page']
             if "toui-response" in session:
                 response = session['toui-response']
+                response.set_data(pg.to_str())
                 del session['toui-response']
                 return response
             else:
-                body_element = pg.get_body_element()
-                if body_element:
-                    body_element.set_content(pg._navigation_bar + body_element.to_str()) 
-                else:
-                    pg.from_str(pg._navigation_bar + pg.to_str())
                 return pg.to_str()
         except Exception as e:
             if 'user page' in session:
@@ -616,6 +621,27 @@ class Page:
         functions = self._get_functions()
         info(f'"{func_name}" called')
         return functions[func_name](*args)
+    
+
+class RedirectingPage(Page):
+    """
+    An empty page that redirects to another page when it is loaded.
+
+    Parameters
+    ----------
+    redirect_to: str
+        The URL of the page to redirect to.
+
+    url: str
+        The URL of the empty page.
+
+    title: str, default=None
+        The title of the empty page.
+
+    """
+    def __init__(self, redirect_to, url, title=None):
+        super().__init__(url=url, title=title)
+        self.on_url_request(lambda: redirect(redirect_to), display_return_value=True)
 
 
 if __name__ == "__main__":

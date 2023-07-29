@@ -7,23 +7,25 @@ import json
 import uuid
 import time
 import os
+import requests
 from copy import copy
 from abc import ABCMeta, abstractmethod
 from collections import UserDict
 from collections.abc import MutableMapping
 from functools import wraps
-from typing import Any
-from flask import Flask, session, request, send_file, make_response
+from typing import Any, Union
+from flask import Flask, session, request, send_file, make_response, redirect
 from flask_sock import Sock
 import webview
 from toui._helpers import warn, info, debug, error
 from toui.pages import Page
-from toui.exceptions import ToUIWrongPlaceException, ToUINotAddedError
+from toui.exceptions import ToUIWrongPlaceException, ToUINotAddedError, ToUIOverlapException
 from toui._defaults import validate_ws, validate_data
 
 _imported_optional_reqs = {'flask-login':False,
                           'flask-sqlalchemy':False,
-                          'flask-basicauth':False}
+                          'flask-basicauth':False,
+                          'firebase_admin': False}
 
 try:
     from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, AnonymousUserMixin
@@ -38,6 +40,16 @@ except ModuleNotFoundError: pass
 try:
     from flask_basicauth import BasicAuth
     _imported_optional_reqs['flask-basicauth'] = True
+except ModuleNotFoundError: pass
+
+try:
+    import firebase_admin
+    import firebase_admin.db
+    import firebase_admin.firestore
+    import firebase_admin.credentials
+    import firebase_admin.storage
+    import firebase_admin.auth
+    _imported_optional_reqs['firebase_admin'] = True
 except ModuleNotFoundError: pass
 
 
@@ -128,11 +140,16 @@ class _App(metaclass=ABCMeta):
         self._add_communication_method()
         self._add_user_vars(timeout_interval=vars_timeout, gen_sid_algo=gen_sid_algo)
         self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
-        self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>"]
+        self.flask_app.route("/toui-google-sign-in", methods=['POST', 'GET'])(self._sign_in_using_google)
+        self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>", "/toui-google-sign-in"]
         self._validate_ws = validate_ws
         self._validate_data = validate_data
         self._auth = None
         self._user_cls = None
+        self._user_db_type = None
+        self._firebase_app = None
+        self._firebase_db = None
+        self._google_data = {}
 
     @abstractmethod
     def run(self): pass
@@ -242,14 +259,86 @@ class _App(metaclass=ABCMeta):
         self._user_vars._set(f'toui-download-{path_id}', filepath)
         self.open_new_page(f"/toui-download-{path_id}", new=new)
 
+    @_ReqsChecker(['firebase_admin'])
+    def add_firebase(self, firebase_config: Union[dict, str], **options):
+        """
+        Adds Firebase to the app.
+
+        Parameters
+        ----------
+        firebase_config: dict, str
+            The Firebase configuration dictionary or the path of credentials JSON.
+
+        options (optional)
+            Extra options for initializing Firebase. Check the documentation of ``firebase_admin.initialize_app`` for more details.
+
+        """
+        certificate = firebase_admin.credentials.Certificate(firebase_config)
+        self._firebase_app = firebase_admin.initialize_app(certificate, options)
+
+    def store_file_using_firebase(self, destination_path, file_path, bucket_name=None):
+        """
+        Uploads a file to Firebase storage.
+
+        Parameters
+        ----------
+        destination_path: str
+            The path of the file in Firebase storage.
+
+        file_path: str
+            The path of the file on the server.
+
+        bucket_name: str, default = None
+            The name of the bucket. If ``None``, the default bucket will be used. However, if you did not specify "storageBucket"
+            option in the Firebase configuration, you must specify the bucket name in this function.
+
+        Returns
+        -------
+        None
+
+        """
+        bucket = firebase_admin.storage.bucket(name=bucket_name)
+        blob = bucket.blob(destination_path)
+        blob.upload_from_filename(file_path)
+
+    def get_file_from_firebase(self, source_path, new_file_path, bucket_name=None):
+        """
+        Downloads a file from Firebase storage.
+
+        Parameters
+        ----------
+        source_path: str
+            The path of the file in Firebase storage.
+
+        new_file_path: str
+            The path of the file on the server.
+
+        bucket_name: str, default = None
+            The name of the bucket. If ``None``, the default bucket will be used. However, if you did not specify "storageBucket"
+            option in the Firebase configuration, you must specify the bucket name in this function.
+
+        Returns
+        -------
+        None
+
+        """
+        bucket = firebase_admin.storage.bucket(name=bucket_name)
+        blob = bucket.blob(source_path)
+        blob.download_to_filename(new_file_path)
+
     @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
-    def add_user_database(self, database_uri, other_columns=[], user_cls=None):
+    def add_user_database_using_sql(self, database_uri, other_columns=[], user_cls=None):
         """
         Creates a simple database that has data specific to each user.
 
-        The database is a table that contains the following columns: `username`, `password`, and `id`. To add other columns,
+        The database has a table that contains the following columns: `username`, `password`, and `id`. To add other columns,
         add their names in `other_columns` list.  Note that this is different from `user_vars` which is a stores temporary
         data without the need to sign in.
+
+        Warning
+        -------
+        A table called `users` will be created in the database. If you already have a table with the same name, it might be
+        overwritten.
 
         Parameters
         ----------
@@ -257,11 +346,11 @@ class _App(metaclass=ABCMeta):
             The URI of the database that you want to connect to.
 
         other_columns: list
-            The names of table columns other than `username`, `password`, and `id`.
+            The names of table columns other than `username`, `password`, `email` and `id`.
 
         user_cls: Callable, default=None
-            If this parameter is ``None``, a table called `User` will be created. However, if this parameter was set, the
-            table `User` will not be created and the parameter `user_cls` will be used instead.
+            If this parameter is ``None``, a table called `users` will be created. However, if this parameter was set, the
+            table `users` will not be created and the parameter `user_cls` will be used instead.
 
 
         .. admonition:: Behind The Scenes
@@ -277,17 +366,21 @@ class _App(metaclass=ABCMeta):
             - `SQLALCHEMY_DATABASE_URI = database_uri`
 
         """
+        if self._user_db_type == "firebase":
+            raise ToUIOverlapException("This function cannot be called when using Firebase user database.")
+        self._user_db_type = "sql"
         self.flask_app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
         self._db = SQLAlchemy(self.flask_app)
         self._login_manager = LoginManager(self.flask_app)
         self._load_user = self._login_manager.user_loader(self._load_user)
         if not user_cls:
             class User(UserMixin, self._db.Model):
-                __tablename__ = "user"
+                __tablename__ = "users"
 
                 id = self._db.Column(self._db.Integer, primary_key=True)
                 username = self._db.Column(self._db.String, nullable=False, unique=True)
-                password = self._db.Column(self._db.String, nullable=False, unique=False)
+                email = self._db.Column(self._db.String, nullable=True, unique=True)
+                password = self._db.Column(self._db.String, nullable=True, unique=False)
 
                 def __repr__(self):
                     return f'<User {self.username}>'
@@ -298,6 +391,30 @@ class _App(metaclass=ABCMeta):
         self._user_cls = User
         with self.flask_app.app_context():
             self._db.create_all()
+
+    @_ReqsChecker(['firebase_admin'])
+    def add_user_database_using_firebase(self):
+        """
+        Adds Firebase user database to the app.
+
+        Make sure you create a firestore database (not realtime) in your Firebase app.
+
+        Warning
+        -------
+        A collection called `users` will be created in the database. If you already have a collection with the same name, it might be overwritten.
+
+        .. admonition:: Behind The Scenes
+            :class: tip
+            
+            Firebase authentication and database are used when calling this function.
+            
+        """
+        if self._firebase_app is None:
+            raise ToUINotAddedError("Firebase is not added to the app. Use `add_firebase` to add it.")
+        if self._user_db_type == "sql":
+            raise ToUIOverlapException("This function cannot be called when using SQL user database.")
+        self._user_db_type = "firebase"
+        self._firebase_db = firebase_admin.firestore.client().collection("users")
 
     # Website-specific methods
     @staticmethod
@@ -348,8 +465,7 @@ class _App(metaclass=ABCMeta):
         """
         return request
 
-    @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
-    def signup_user(self, username, password, **other_info):
+    def signup_user(self, username, password=None, email=None, **other_info):
         """
         Creates a new user in the database.
         
@@ -358,6 +474,8 @@ class _App(metaclass=ABCMeta):
         username: str
 
         password: str
+
+        email: str
 
         other_info
             Other information required for signing up.
@@ -369,18 +487,26 @@ class _App(metaclass=ABCMeta):
 
         """
         self._confirm_user_database_created()
-        if self.username_exists(username):
+        if self.username_exists(username) or self.email_exists(email):
             return False
-        new_user = self._user_cls(username=username, password=password, **other_info)
-        self._db.session.add(new_user)
-        self._db.session.commit()
-        if self.username_exists(username):
+        if self._user_db_type == "sql":
+            new_user = self._user_cls(username=username, password=password, email=email, **other_info)
+            self._db.session.add(new_user)
+            self._db.session.commit()
+        elif self._user_db_type == "firebase":
+            if password is not None:
+                if len(password) < 6:
+                    error("Password for Firebase authentication needs to be at least 6 characters")
+                    return False
+            user_record = firebase_admin.auth.create_user(password=password, display_name=username, email=email)
+            self._firebase_db.document(user_record.uid).set({"username": username, 'password': password,
+                                                                         'email': email, **other_info})
+        if self.username_exists(username) or self.email_exists(email):
             return True
         else:
             return False
 
-    @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
-    def signin_user(self, username, password, **other_info):
+    def signin_user(self, username, password=None, email=None, **other_info):
         """
         Loads the data of a user from database.
 
@@ -400,15 +526,20 @@ class _App(metaclass=ABCMeta):
 
         """
         self._confirm_user_database_created()
-        user = self._user_cls.query.filter_by(username=username, password=password, **other_info).first()
-        if user:
-            login_user(user)
-            self._user_vars._set("user-id", user.id)
-            return True
-        else:
+        if not self.username_exists(username) and not self.email_exists(email):
             return False
+        if self._user_db_type == "sql":
+            user = self._user_cls.query.filter_by(username=username, password=password, email=email, **other_info).first()
+            if user:
+                login_user(user)
+                self._user_vars._set("user-id", user.id)
+                return True
+            else:
+                return False
+        elif self._user_db_type == "firebase":
+            user_id = self._firebase_db.where("username", "==", username).get()[0].id
+            return self.signin_user_from_id(user_id)
         
-    @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
     def signin_user_from_id(self, user_id, **other_info):
         """
         Loads the data of a user from database using the user's ID.
@@ -427,23 +558,99 @@ class _App(metaclass=ABCMeta):
 
         """
         self._confirm_user_database_created()
-        user = self._user_cls.query.filter_by(id=user_id, **other_info).first()
-        if user:
-            login_user(user)
-            self._user_vars._set("user-id", user_id)
-            return True
-        else:
-            return False
+        if self._user_db_type == "sql":
+            user = self._user_cls.query.filter_by(id=user_id, **other_info).first()
+            if user:
+                login_user(user)
+                self._user_vars._set("user-id", user_id)
+                return True
+            else:
+                return False
+        elif self._user_db_type == "firebase":
+            user = firebase_admin.auth.get_user(user_id)
+            if user:
+                self._user_vars._set("user-id", user_id)
+                return True
+            else:
+                return False
+            
+    def get_current_user_data(self, key):
+        """
+        Gets data specific to the currently signed in user from the database.
 
-    @_ReqsChecker(['flask-login'])
+        Parameters
+        ----------
+        key: str
+            The key (name) of the data. For example: "username", "email", "age", etc.
+
+        Returns
+        -------
+        Any
+            The value of the data.
+        """
+        self._confirm_user_database_created()
+        if not self.is_signed_in():
+            error("No user is signed in.")
+            return None
+        if self._user_db_type == "sql":
+            return getattr(current_user, key)
+        elif self._user_db_type == "firebase":
+            return self._firebase_db.document(self._user_vars._get("user-id")).get().to_dict().get(key)
+
+    def set_current_user_data(self, key, value):
+        """
+        Sets data specific to the currently signed in user in the database.
+
+        Parameters
+        ----------
+        key: str
+            The key (name) of the data. For example: "username", "email", "age", etc.
+
+        value: Any
+            The value of the data.
+
+        Returns
+        -------
+        bool
+            ``True`` if the data is set, and ``False`` if it is not set.
+
+        """
+        self._confirm_user_database_created()
+        if not self.is_signed_in():
+            error("No user is signed in.")
+            return False
+        if self._user_db_type == "sql":
+            setattr(current_user, key, value)
+            self._db.session.commit()
+            return True
+        elif self._user_db_type == "firebase":
+            self._firebase_db.document(self._user_vars._get("user-id")).update({key: value})
+            return True
+        
+    def get_current_user_id(self):
+        """
+        Gets the ID of the currently signed in user.
+
+        Returns
+        -------
+        str
+            The ID of the user.
+        """
+        self._confirm_user_database_created()
+        if not self.is_signed_in():
+            error("No user is signed in.")
+            return None
+        return self._user_vars._get("user-id")
+
     def signout_user(self):
         """
         A method that signs out the current user.
         """
-        logout_user()
+        self._confirm_user_database_created()
+        if self._user_db_type == "sql":
+            logout_user()
         self._user_vars._del('user-id')
 
-    @_ReqsChecker(['flask-sqlalchemy'])
     def username_exists(self, username):
         """
         Checks if the username is exists in the database.
@@ -458,22 +665,99 @@ class _App(metaclass=ABCMeta):
             ``True`` if the username exists, otherwise ``False``.
             """
         self._confirm_user_database_created()
-        if self._user_cls.query.filter_by(username=username).first():
-            info(f"User {username} exists")
+        if self._user_db_type == "sql":
+            if self._user_cls.query.filter_by(username=username).first():
+                info(f"User {username} exists")
+                return True
+            else:
+                return False
+        elif self._user_db_type == "firebase":
+            if len(self._firebase_db.where("username", "==", username).get()) > 0:
+                info(f"User {username} exists")
+                return True
+            else:
+                return False
+            
+    def email_exists(self, email):
+        """
+        Checks if the email is exists in the database.
+        
+        Parameters
+        ----------
+        email: str
+        
+        Returns
+        -------
+        bool
+            ``True`` if the email exists, otherwise ``False``.
+        """
+        self._confirm_user_database_created()
+        if email is None:
+            return False
+        if self._user_db_type == "sql":
+            if self._user_cls.query.filter_by(email=email).first():
+                info(f"Email {email} exists")
+                return True
+            else:
+                return False
+        elif self._user_db_type == "firebase":
+            if len(self._firebase_db.where("email", "==", email).get()) > 0:
+                return True
+            else:
+                return False
+
+    def is_signed_in(self):
+        """
+        Checks if the user is signed in.
+        """
+        self._confirm_user_database_created()
+        if self.user_vars._get('user-id'):
             return True
         else:
             return False
+        
+    def sign_in_using_google(self, client_id, client_secret, after_auth_url, additional_scopes=None, custom_username=None, **other_params):
+        """
+        Signs in a user using Google (Experimental).
 
-    @staticmethod
-    @_ReqsChecker(['flask-login'])
-    def get_current_user():
+        Make sure to create a Google app first. Also, add the following as an authorized redirect URI to your Google app:
+        `https://<your-domain>/toui-google-sign-in`
+        
+        Parameters
+        ----------
+        client_id: str
+            The client ID of the Google app.
+
+        client_secret: str
+            The client secret of the Google app.
+
+        after_auth_url: str
+            The URL to redirect to after completing authentication. This is not the same as the redirect uri of the Google app, so
+            you do not need to register it as an authorized redirect URI in your Google app.
+
+        Optional Parameters
+        -------------------
+        additional_scopes: list, default=None
+            By default, the user allows the app to only access non-sensitive information such as the user's name and email. If you
+            want to access more information, you can pass a list of scopes. For more information, see `Google's documentation <https://developers.google.com/identity/protocols/oauth2/scopes>`_.
+
+        custom_username: str, default=None
+            If you want to use a custom username instead of the user's email, you can pass it here.
+
+        other_params (optional)
+            Keyword arguments that can be passed as parameters to authorization url.For more information, see
+            `Google's documentation <https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1>`_.
         """
-        A static method that returns the current user.
-        """
-        if isinstance(current_user, AnonymousUserMixin):
-            return None
-        else:
-            return current_user
+
+        self._google_data = {"client_id": client_id, "client_secret": client_secret}
+        scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+        if additional_scopes:
+            for s in additional_scopes:
+                scope += f" {s}"
+        url = f"/toui-google-sign-in?after_auth_url={after_auth_url}&scope={scope}"
+        for key, value in other_params.items():
+            url += f"&{key}={value}"
+        self.open_new_page(url=url)
 
     @_ReqsChecker(['flask-basicauth'])
     def add_restriction(self, username, password):
@@ -662,11 +946,98 @@ class _App(metaclass=ABCMeta):
                 debug(f"TIME: {e - s}s")
 
     def _confirm_user_database_created(self):
-        if self._user_cls is None:
-            raise ToUINotAddedError("You have not created the user database yet. To create it, call the method: `add_user_database`.")
+        if self._user_db_type is None:
+            raise ToUINotAddedError("You have not created the user database yet. To create it, call the method: `add_user_database_using_sql` or `add_user_database_using_firebase`.")
 
     def _load_user(self, user_id):
         return self._user_cls.query.filter_by(id=int(user_id)).first()
+    
+    def _get_user_details_from_google_token(self, access_token, refresh_token=None):
+        headers = {"Authorization": f"Bearer {access_token}"}
+        r = requests.get("https://www.googleapis.com/oauth2/v1/userinfo", headers=headers)
+        if r.status_code == 200:
+            return r.json()
+        elif r.status_code == 401:
+            if refresh_token:
+                r = requests.post("https://oauth2.googleapis.com/token", data={
+                    "client_id": self._google_data['client_id'],
+                    "client_secret": self._google_data['client_secret'],
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token"
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"})
+                if r.status_code == 200:
+                    return self._get_user_details_from_google_token(r.json()['access_token'])
+        raise Exception(f"Error getting user details from Google. Status code: {r.status_code}. Response: {r.text}")
+    
+    def _sign_in_using_google(self):
+        client_id = self._google_data['client_id']
+        client_secret = self._google_data['client_secret']
+        scope = request.args.get("scope")
+        redirect_uri = request.base_url
+        response_type = "code"
+        access_type = request.args.get("access_type")
+        state = request.args.get("state")
+        include_granted_scopes = request.args.get("include_granted_scopes")
+        enable_granular_consent = request.args.get("enable_granular_consent")
+        login_hint = request.args.get("login_hint")
+        prompt = request.args.get("prompt")
+        after_auth_url = request.args.get("after_auth_url")
+        if after_auth_url:
+            self.user_vars._set('google-after-auth-url', after_auth_url)
+        else:
+            after_auth_url = self.user_vars._get('google-after-auth-url')
+        username = request.args.get("username")
+        if "code" in request.args:
+            code = request.args.get("code")
+            dictToSend = {'code':code,
+                          'client_id':client_id,
+                          'client_secret':client_secret,
+                          'grant_type':'authorization_code',
+                          'redirect_uri':redirect_uri}
+            res = requests.post('https://oauth2.googleapis.com/token', data=dictToSend,
+                                headers={'Host': 'oauth2.googleapis.com',
+                                         'Content-Type':'application/x-www-form-urlencoded'})
+            dictFromServer = res.json()
+            self.user_vars._set('google-access-token', dictFromServer['access_token'])
+            if 'refresh_token' in dictFromServer:
+                self.user_vars._set('google-refresh-token', dictFromServer['refresh_token'])
+            user_details = self._get_user_details_from_google_token(access_token=dictFromServer['access_token'], refresh_token=self.user_vars._get('google-refresh-token'))
+            self.user_vars._set('google-user-details', user_details)
+            email = user_details['email']
+            if username is None:
+                username = email
+            if self.email_exists(email):
+                self.signin_user(email=email, username=username, password=None)
+            else:
+                self.signup_user(email=email, username=username, password=None)
+            return redirect(after_auth_url)
+        else:
+            redirect_to = f"https://accounts.google.com/o/oauth2/v2/auth?" \
+                      f"client_id={client_id}" \
+                      f"&response_type={response_type}" \
+                      f"&scope={scope}" \
+                      f"&redirect_uri={redirect_uri}"
+            
+            if access_type is not None:
+                redirect_to += f"&access_type={access_type}"
+            if state is not None:
+                redirect_to += f"&state={state}"
+            if include_granted_scopes is not None:
+                if include_granted_scopes is True:
+                    redirect_to += f"&include_granted_scopes=true"
+                elif include_granted_scopes is False:
+                    redirect_to += f"&include_granted_scopes=false"
+            if enable_granular_consent is not None:
+                if enable_granular_consent is True:
+                    redirect_to += f"&enable_granular_consent=true"
+                elif enable_granular_consent is False:
+                    redirect_to += f"&enable_granular_consent=false"
+            if login_hint is not None:
+                redirect_to += f"&login_hint={login_hint}"
+            if prompt is not None:
+                redirect_to += f"&prompt={' '.join(prompt)}"
+            return redirect(redirect_to)
 
 
 class _FuncWithPage:

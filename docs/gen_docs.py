@@ -5,7 +5,7 @@ import subprocess
 import sys
 sys.path.append("..")
 from toui import Website, DesktopApp, Page, Element, IFrameElement,\
-    ToUIBlueprint, quick_website, quick_desktop_app, set_global_app, get_global_app, __version__
+    ToUIBlueprint, RedirectingPage, quick_website, quick_desktop_app, set_global_app, get_global_app, __version__
 from toui._signals import File
 from docs.rst_objects import Index, Section, MD, Class, Example, Function
 
@@ -29,6 +29,11 @@ for cls in (IFrameElement, File):
     cls_object.to_rst()
     other_objects.append(cls_object)
 cls_object = Class(ToUIBlueprint)
+cls_object.no_inherit_methods = True
+cls_object.to_rst()
+other_objects.append(cls_object)
+
+cls_object = Class(RedirectingPage)
 cls_object.no_inherit_methods = True
 cls_object.to_rst()
 other_objects.append(cls_object)
