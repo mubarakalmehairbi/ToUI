@@ -4,4 +4,4 @@ from .elements import Element, IFrameElement
 from .structure import ToUIBlueprint
 from . import exceptions
 
-__version__ = "v3.0.0-beta"
+__version__ = "v3.0.1-beta"
