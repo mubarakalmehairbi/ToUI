@@ -6,12 +6,12 @@
 ![Docs](https://img.shields.io/readthedocs/toui)
 
 # Overview
-ToUI is a Python package for creating user interfaces (websites and desktop apps)
-from HTML easily. No JavaScript knowledge is required, but some knowledge of HTML
+ToUI is a Python framework for creating user interfaces (web apps and desktop apps)
+from HTML code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML
 is usually required.
 
 # Why ToUI
-- Converts HTML files into a responsive app.
+- Converts HTML and CSS files into a fast-responsive app using Python alone.
 - Simple to understand for programmers who only know Python and HTML.
 - Edit HTML files dynamically.
 - The method of creating websites and the method of creating desktop apps are similar, which makes it easy to convert a website to a desktop app and vice versa.
