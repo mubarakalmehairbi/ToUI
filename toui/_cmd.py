@@ -23,19 +23,37 @@ Usage:
     toui --help
         Displays this help text.
 """
+reqs = """beautifulsoup4==4.12.2
+Flask==2.2.5
+flask_sock==0.6.0
+pywebview==4.1
+tinycss==0.4
+requests==2.31.0"""
+
+optional_reqs = """flask_sqlalchemy==3.0.3
+Flask_BasicAuth==0.2.0
+Flask_Login==0.6.2
+firebase_admin==6.2.0"""
+
+def install_reqs(reqs):
+    for pkg in reqs.splitlines():
+        pkg_name = pkg.split("==")[0]
+        pkg_version = pkg.split("==")[1]
+        pkg_major_version = pkg_version.split(".")[0]
+        req = f"{pkg_name}>={pkg_version},<{int(pkg_major_version)+1}"
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', req])
+
 def main():
-    import toui as t
-    pkg_directory = t.__path__[0]
     if "--help" in sys.argv or len(sys.argv) == 1:
         print(help_text)
 
     try:
         if "--minimal-reqs" in sys.argv:
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
+            install_reqs(reqs)
 
         if "--all-reqs" in sys.argv:
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/optional_requirements.txt"])
+            install_reqs(reqs)
+            install_reqs(optional_reqs)
     except subprocess.CalledProcessError as e:
         print("An error occured while installing the requirements. Please try again.")
         print(e.output)

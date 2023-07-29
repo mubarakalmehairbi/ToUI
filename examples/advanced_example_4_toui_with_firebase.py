@@ -36,8 +36,6 @@ This example uses the HTML file "test7.html":
 
 Python code:
 """
-import sys
-sys.path.append("..")
 import os
 from toui import Website, Page
 

@@ -38,8 +38,6 @@ Python code:
 
 .. code-block:: python
 
-   import sys
-   sys.path.append("..")
    import os
    from toui import Website, Page
    
