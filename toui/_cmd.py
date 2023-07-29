@@ -29,13 +29,16 @@ def main():
     if "--help" in sys.argv or len(sys.argv) == 1:
         print(help_text)
 
-    if "--minimal-reqs" in sys.argv:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
+    try:
+        if "--minimal-reqs" in sys.argv:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
 
-    if "--all-reqs" in sys.argv:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/optional_requirements.txt"])
-
+        if "--all-reqs" in sys.argv:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/requirements.txt"])
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', "-r", f"{pkg_directory}/optional_requirements.txt"])
+    except subprocess.CalledProcessError as e:
+        print("An error occured while installing the requirements. Please try again.")
+        print(e.output)
     if "init" in sys.argv:
         if not "--full" in sys.argv:
             response = requests.get("https://github.com/mubarakalmehairbi/BasicToUIProject/archive/master.zip", stream=True)
