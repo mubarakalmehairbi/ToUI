@@ -12,7 +12,6 @@ Usage:
     toui init
         Creates a basic ToUI project template in the current directory.
 
-
     toui --minimal-reqs
         Installs the minimal requirements for ToUI to work. This is useful if you want to
         install the optional requirements manually.
@@ -25,7 +24,8 @@ Usage:
         Displays this help text.
 """
 def main():
-    pkg_directory = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
+    import toui as t
+    pkg_directory = t.__path__[0]
     if "--help" in sys.argv or len(sys.argv) == 1:
         print(help_text)
 
