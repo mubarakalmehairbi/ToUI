@@ -979,9 +979,6 @@ class _App(metaclass=ABCMeta):
         client_id = self._google_data['client_id']
         client_secret = self._google_data['client_secret']
         scope = request.args.get("scope")
-        for s in scope.split(" "):
-            if not s.startswith("https://www.googleapis.com/auth/"):
-                raise Exception("Invalid scope. Scope should start with `https://www.googleapis.com/auth/`.")
         redirect_uri = request.base_url
         response_type = "code"
         access_type = request.args.get("access_type")
@@ -1017,6 +1014,12 @@ class _App(metaclass=ABCMeta):
                 self.signup_user(email=email, username=username, password=None)
             return redirect(after_auth_url)
         else:
+            # Validating scope
+            for s in scope.split(" "):
+                if not s.startswith("https://www.googleapis.com/auth/"):
+                    raise ValueError(f"Invalid scope. Scope should start with `https://www.googleapis.com/auth/`. However your scope is `{s}`")
+            
+            # Creating redirect_to
             redirect_to = f"https://accounts.google.com/o/oauth2/v2/auth?" \
                       f"client_id={client_id}" \
                       f"&response_type={response_type}" \

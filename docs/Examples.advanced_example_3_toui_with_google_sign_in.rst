@@ -3,9 +3,10 @@ ToUI with Google sign in
 
 ToUI can be used with Google sign in. This example shows how to use Google sign in with ToUI.
 Make sure to create a Google app first. Also, add the following as an authorized redirect URI to your Google app:
-`https://<your-domain>/toui-google-sign-in`
+``https://<your-domain>/toui-google-sign-in``
 
-One way to create a Google app is through Google Firebase. Perhaps check it out.
+One way to create a Google app is through Google Firebase. Perhaps check it out. Note that you will need to access
+Google API console nevertheless to enter the authorized redirect URI: ``https://<your-domain>/toui-google-sign-in``
 
 This example uses the HTML file "test6.html":
 
@@ -28,8 +29,14 @@ Python code:
 
 .. code-block:: python
 
+   import sys
+   sys.path.append("..")
    import os
    from toui import Website, Page
+   
+   # Get these from your google app.
+   GOOGLE_CLIENT_ID = os.environ['GOOGLE_CLIENT_ID']
+   GOOGLE_CLIENT_SECRET = os.environ['GOOGLE_CLIENT_SECRET']
    
    # Create app
    app = Website(__name__, assets_folder="assets", secret_key="some secret key")
@@ -41,13 +48,13 @@ Python code:
    # Create functions that will be called from HTML
    def get_user_info():
        pg = app.get_user_page()
-       if app.get_current_user():
-           pg.get_element("user-info").set_content(f"User: {app.get_current_user().username}")
+       if app.is_signed_in():
+           pg.get_element("user-info").set_content(f"User: {app.get_current_user_data('username')}")
    
    def sign_in():
        """Sign in using Google."""
-       app.sign_in_using_google(client_id=os.environ['GOOGLE_CLIENT_ID'],
-                                client_secret=os.environ['GOOGLE_CLIENT_SECRET'],
+       app.sign_in_using_google(client_id=GOOGLE_CLIENT_ID,
+                                client_secret=GOOGLE_CLIENT_SECRET,
                                 after_auth_url="/")
    
    # Connect functions to elements
