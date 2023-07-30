@@ -758,9 +758,10 @@ class _App(metaclass=ABCMeta):
         if additional_scopes:
             for s in additional_scopes:
                 scope += f" {s}"
-        url = f"/toui-google-sign-in?after_auth_url={after_auth_url}&scope={scope}"
+        url = f"/toui-google-sign-in?scope={scope}"
         for key, value in other_params.items():
             url += f"&{key}={value}"
+        self.user_vars._set('google-after-auth-url', after_auth_url)
         self.open_new_page(url=url)
 
     @_ReqsChecker(['flask-basicauth'])
@@ -978,6 +979,9 @@ class _App(metaclass=ABCMeta):
         client_id = self._google_data['client_id']
         client_secret = self._google_data['client_secret']
         scope = request.args.get("scope")
+        for s in scope.split(" "):
+            if not s.startswith("https://www.googleapis.com/auth/"):
+                raise Exception("Invalid scope. Scope should start with `https://www.googleapis.com/auth/`.")
         redirect_uri = request.base_url
         response_type = "code"
         access_type = request.args.get("access_type")
@@ -986,11 +990,7 @@ class _App(metaclass=ABCMeta):
         enable_granular_consent = request.args.get("enable_granular_consent")
         login_hint = request.args.get("login_hint")
         prompt = request.args.get("prompt")
-        after_auth_url = request.args.get("after_auth_url")
-        if after_auth_url:
-            self.user_vars._set('google-after-auth-url', after_auth_url)
-        else:
-            after_auth_url = self.user_vars._get('google-after-auth-url')
+        after_auth_url = self.user_vars._get('google-after-auth-url')
         username = request.args.get("username")
         if "code" in request.args:
             code = request.args.get("code")
