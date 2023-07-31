@@ -1,15 +1,13 @@
-ToUI with Firebase
-==================
+ToUI with SQL User Database
+===========================
 
-ToUI can be used with Firebase. Create a Firebase app to use this example. In this example, ToUI is used with Firebase for:
+ToUI can be easily used with SQL database for:
 
 - User authentication
 - Storing user data in database
-- File storage
-- File retrieval
 
 
-This example uses the HTML file "test7.html":
+This example uses the HTML file "test8.html":
 
 .. code-block:: html
 
@@ -27,10 +25,6 @@ This example uses the HTML file "test7.html":
        <button id="sign-in">Sign in</button>
        <button id="sign-up">Sign up</button>
        <p id="output"></p>
-       <h1>Upload files:</h1>
-       <input type="file" id="file"/>
-       <button id="get-file">Download uploaded file</button>
-       <p id="output2"></p>
    </body>
    </html>
 
@@ -38,15 +32,15 @@ Python code:
 
 .. code-block:: python
 
+   import sys
+   sys.path.append("..")
    import os
    from toui import Website, Page
    
    app = Website(__name__, assets_folder="assets", secret_key="some text")
-   app.add_firebase(".my_firebase_credentials.json") # You can get this file from your firebase project settings
-   app.add_user_database_using_firebase() # Connects to firestore database. Make sure that you created one in Firebase.
-   BUCKET_NAME = "test-14583.appspot.com" # Change this value to match your bucket name in Firebase Storage
-   
-   main_pg = Page(html_file="assets/test7.html", url="/")
+   SQL_URI = f"sqlite:///{os.getcwd()}/.test.db" # Change this value to match your SQL database URI
+   app.add_user_database_using_sql(SQL_URI, other_columns=["age"]) # Connects to sql database.
+   main_pg = Page(html_file="assets/test8.html", url="/")
    
    def sign_in():
        pg = app.get_user_page()
@@ -73,28 +67,22 @@ Python code:
        else:
            pg.get_element("output").set_content("Sign up failed")
    
-   
-   def store_file():
+   def set_age():
        pg = app.get_user_page()
-       file = pg.get_element("file").get_files()[0]
-       with open(".test_file", "w") as f:
-           file.save(f)
-       app.store_file_using_firebase(destination_path=f"{app.get_current_user_id()}/test_file", file_path=".test_file", bucket_name=BUCKET_NAME)
-       pg.get_element("output2").set_content("File stored")
+       age = pg.get_element("age").get_value()
+       app.set_current_user_data("age", age)
+       pg.get_element("age-output").set_content(f"Age set to {age}")
    
-   def retrieve_file():
+   def get_age():
        pg = app.get_user_page()
-       if os.path.exists(".new_test_file"):
-           raise Exception(".new_test_file already exists")
-       app.get_file_from_firebase(source_path=f"{app.get_current_user_id()}/test_file", new_file_path=".new_test_file", bucket_name=BUCKET_NAME)
-       with open(".new_test_file", "r") as f:
-           pg.get_element("output2").set_content("Downloaded file content: " + f.read())
-   
+       age = app.get_current_user_data("age")
+       pg.get_element("age-output").set_content(f"Age is {age}")
    
    main_pg.get_element("sign-in").onclick(sign_in)
    main_pg.get_element("sign-up").onclick(sign_up)
-   main_pg.get_element("file").on("change", store_file)
-   main_pg.get_element("get-file").onclick(retrieve_file)
+   main_pg.get_element("set-age").onclick(set_age)
+   main_pg.get_element("get-age").onclick(get_age)
+   
    
    app.add_pages(main_pg)
    
