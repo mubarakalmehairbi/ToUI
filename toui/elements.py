@@ -353,7 +353,10 @@ class Element:
             If the attribute does not exist.
 
         """
-        return self._element.attrs.get(name)
+        value = self._element.attrs.get(name)
+        if type(value) == list:
+            value = ' '.join(value)
+        return value
 
     @_ElementSignal()
     def set_attr(self, name, value):

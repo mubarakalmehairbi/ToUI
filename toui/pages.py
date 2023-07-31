@@ -155,6 +155,7 @@ class Page:
         self._view_func = self._on_url_request
         self._uid = None
         self._navigation_bar = ""
+        self._footer = ""
 
     def __str__(self):
         return self.to_str()
@@ -167,6 +168,7 @@ class Page:
         new_pg.from_bs4_soup(self.to_bs4_soup())
         new_pg._signal_mode = self._signal_mode
         new_pg._navigation_bar = self._navigation_bar
+        new_pg._footer = self._footer
         new_pg._app = self._app
         return new_pg
     
@@ -486,13 +488,16 @@ class Page:
         new_func = lambda: self._on_url_request(func=func, display_return_value=display_return_value)
         self._view_func = new_func
 
-    def set_navigation_bar(self, html_str):
+    def set_navigation_bar(self, html_file=None, html_str=None):
         """
         Adds a navigation bar to the page.
 
         Parameters
         ----------
-        html_str: str
+        html_file: str, default=None
+            Path to the HTML file that contains the navigation bar.
+
+        html_str: str, default=None
             HTML code of the navigation bar.
 
         Returns
@@ -500,7 +505,34 @@ class Page:
         None
 
         """
-        self._navigation_bar = html_str
+        if html_file is not None:
+            with open(html_file, "r") as f:
+                self._navigation_bar = f.read()
+        if html_str is not None:
+            self._navigation_bar = html_str
+
+    def set_footer(self, html_file=None, html_str=None):
+        """
+        Adds a footer to the page.
+
+        Parameters
+        ----------
+        html_file: str, default=None
+            Path to the HTML file that contains the footer.
+
+        html_str: str
+            HTML code of the footer.
+
+        Returns
+        -------
+        None
+
+        """
+        if html_file is not None:
+            with open(html_file, "r") as f:
+                self._footer = f.read()
+        if html_str is not None:
+            self._footer = html_str
 
     def get_window(self):
         for window in webview.windows:
@@ -529,8 +561,9 @@ class Page:
             body_element = pg.get_body_element()
             if body_element:
                 body_element.set_content(pg._navigation_bar + body_element.to_str()) 
+                body_element.add_content(pg._footer)
             else:
-                pg.from_str(pg._navigation_bar + pg.to_str())
+                pg.from_str(pg._navigation_bar + pg.to_str() + pg._footer)
             del session['user page']
             if "toui-response" in session:
                 response = session['toui-response']

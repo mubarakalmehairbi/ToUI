@@ -464,6 +464,29 @@ class _App(metaclass=ABCMeta):
 
         """
         return request
+    
+    def redirect_response(self, url):
+        """
+        Use it with `Page.on_url_request` to redirect the user to another page.
+
+        `Page.on_url_request` is called when the user makes an HTTP request to the page. If you want to redirect the user
+        to another page, define a function then use this method as the return value of a function. Then add the function to
+        `Page.on_url_request` and set `display_return_value` as ``True``.
+
+        Examples
+        --------
+        
+        >>> def redirect_function():
+        ...     return app.redirect_response("/another-page-url")
+        >>> home_page.on_url_request(redirect_function, display_return_value=True)
+
+        Parameters
+        ----------
+        url: str
+            The URL of the page that the user will be redirected to.
+
+        """
+        return redirect(url)
 
     def signup_user(self, username, password=None, email=None, **other_info):
         """
@@ -593,6 +616,9 @@ class _App(metaclass=ABCMeta):
             error("No user is signed in.")
             return None
         if self._user_db_type == "sql":
+            if not key in current_user.__table__.columns:
+                error(f"'{key}' was not added as a column in users table")
+                return None
             return getattr(current_user, key)
         elif self._user_db_type == "firebase":
             return self._firebase_db.document(self._user_vars._get("user-id")).get().to_dict().get(key)
@@ -600,6 +626,12 @@ class _App(metaclass=ABCMeta):
     def set_current_user_data(self, key, value):
         """
         Sets data specific to the currently signed in user in the database.
+
+        Warning
+        -------
+        Currently, if you are using SQL database, you can only set data that
+        was already added as a column in the users table.
+
 
         Parameters
         ----------
@@ -620,6 +652,9 @@ class _App(metaclass=ABCMeta):
             error("No user is signed in.")
             return False
         if self._user_db_type == "sql":
+            if not key in current_user.__table__.columns:
+                error(f"'{key}' was not added as a column in users table")
+                return False
             setattr(current_user, key, value)
             self._db.session.commit()
             return True
@@ -797,14 +832,19 @@ class _App(metaclass=ABCMeta):
 
     def set_ws_validation(self, func):
         """
-        Validate `simple_websocket.ws.Server` object before sending and accepting data.
+        Validates a WebSocket connection before sending and accepting data.
 
         ToUI uses Flask-Sock for websocket communication. Flask-Sock generates a
-        `simple_websocket.ws.Server` object when a connection is established. If you
-        wanted to access this object before sending and receiving data, input a function
-        that has one argument `ws`. This function should either return ``True`` or ``False``.
-        If the function returns ``False``, no data will be sent or received using ToUI with
-        the client.
+        `simple_websocket.ws.Server <https://simple-websocket.readthedocs.io/en/latest/api.html#the-server-class>`_
+        object when a connection is established. If you wanted to access this object before
+        sending and receiving data, input a function that has one argument `ws`. This function
+        should either return ``True`` or ``False``. If the function returns ``False``, no data
+        will be sent or received using ToUI with the client.
+
+        The `ws` argument is a `simple_websocket.ws.Server` object which you can learn about in its
+        `documentation <https://simple-websocket.readthedocs.io/en/latest/api.html#the-server-class>`_.
+        You might need to do some testing in order to explore the types of data that you can find in
+        this object.
 
         Parameters
         ----------
@@ -822,7 +862,7 @@ class _App(metaclass=ABCMeta):
 
     def set_data_validation(self, func):
         """
-        Validate data received from JavaScript before using it.
+        Validates data received from JavaScript before using it.
 
         ToUI receives data from JavaScript in the form of a JSON object. To validate this data
         before allowing ToUI to use it, input a function that checks the data. This function

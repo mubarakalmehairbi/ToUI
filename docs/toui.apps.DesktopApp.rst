@@ -24,6 +24,7 @@ Methods
    toui.apps.DesktopApp.get_user_page
    toui.apps.DesktopApp.is_signed_in
    toui.apps.DesktopApp.open_new_page
+   toui.apps.DesktopApp.redirect_response
    toui.apps.DesktopApp.register_toui_blueprint
    toui.apps.DesktopApp.run
    toui.apps.DesktopApp.set_current_user_data
