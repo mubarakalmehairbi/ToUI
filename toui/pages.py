@@ -419,6 +419,11 @@ class Page:
         """
         Adds a function to the `Page`. This function can be called from an HTML element.
 
+        Warning
+        -------
+        If you added a Python function, users might be able to call this function from the client-side. Choose wisely
+        the functions you add.
+
         Examples
         --------
 

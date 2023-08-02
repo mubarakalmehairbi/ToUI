@@ -30,8 +30,6 @@ This example uses the HTML file "test8.html":
 
 Python code:
 """
-import sys
-sys.path.append("..")
 import os
 from toui import Website, Page
 

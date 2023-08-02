@@ -335,7 +335,7 @@ class Element:
 
         return ' > '.join(path)
 
-    def get_attr(self, name):
+    def get_attr(self, name, default=None):
         """
         Gets the value of an HTML element attribute.
 
@@ -344,18 +344,24 @@ class Element:
         name: str
             The name of the attribute.
 
+        default: Any, default=None
+            The value to return if the attribute does not exist.
+
         Returns
         -------
         str
          If the attribute exists.
 
-        None
-            If the attribute does not exist.
+        None, Any
+            ``None`` will be returned the attribute does not exist. However, if a `default` value is specified,
+            it will be returned instead.
 
         """
         value = self._element.attrs.get(name)
         if type(value) == list:
             value = ' '.join(value)
+        if value is None:
+            value = default
         return value
 
     @_ElementSignal()
@@ -405,20 +411,26 @@ class Element:
         if self.has_attr(name):
             del self._element.attrs[name]
 
-    def get_id(self):
+    def get_id(self, default=None):
         """
         Gets the ``id`` attribute of the HTML element.
+
+        Parameters
+        ----------
+        default: Any, default=None
+            The value to return if the attribute does not exist.
 
         Returns
         -------
         str
          If the attribute exists.
 
-        None
-            If the attribute does not exist.
+        None, Any
+            Retuns ``None`` if the attribute does not exist. However, if a `default` value is specified,
+            it will be returned instead.
 
         """
-        return self.get_attr("id")
+        return self.get_attr("id", default=default)
 
     def set_id(self, value):
         """
@@ -432,20 +444,26 @@ class Element:
         """
         self.set_attr("id", value)
 
-    def get_value(self):
+    def get_value(self, default=None):
         """
         Gets the ``value`` attribute of the HTML element.
+
+        Parameters
+        ----------
+        default: Any, default=None
+            The value to return if the attribute does not exist.
 
         Returns
         -------
         str
             If the attribute exists.
 
-        None
-            If the attribute does not exist.
+        None, Any
+            Retuns ``None`` if the attribute does not exist. However, if a `default` value is specified,
+            it will be returned instead.
 
         """
-        return self.get_attr("value")
+        return self.get_attr("value", default=default)
     
     def get_selected(self) -> 'Element':
         """
@@ -553,7 +571,7 @@ class Element:
         content = BeautifulSoup(content, features="html.parser")
         self._element.append(content)
 
-    def get_style_property(self, property):
+    def get_style_property(self, property, default=None):
         """
         Gets the value of a CSS property inside the ``style`` attribute.
 
@@ -562,13 +580,21 @@ class Element:
         property: str
             The name of the property
 
+        default: Any, default=None
+            The value to return if the property does not exist or the ``style`` attribute does not exist.
+
         Returns
         -------
         str
+            If the property exists.
+
+        None, Any
+            Retuns ``None`` if the property does not exist or the ``style`` attribute does not exist.
+            However, if a `default` value is specified, it will be returned instead.
 
         """
         if not self.has_attr("style"):
-            return
+            return default
         style = self.get_attr('style')
         parser = tinycss.make_parser("page3")
         declarations = parser.parse_style_attr(style)[0]
@@ -578,6 +604,7 @@ class Element:
                 for v in declaration.value:
                     property_value += v.as_css()
                 return property_value
+        return default
 
     def set_style_property(self, property, value):
         """
@@ -614,16 +641,26 @@ class Element:
             new_style += f"{property}: {value};"
         self.set_attr(name="style", value=new_style)
 
-    def get_width_property(self):
+    def get_width_property(self, default=None):
         """
         Gets the value of the CSS property `width` inside the ``style`` attribute.
+
+        Parameters
+        ----------
+        default: Any, default=None
+            The value to return if the property does not exist or the ``style`` attribute does not exist.
 
         Returns
         -------
         str
+            If the property exists.
+
+        None, Any
+            Retuns ``None`` if the property does not exist or the ``style`` attribute does not exist.
+            However, if a `default` value is specified, it will be returned instead.
 
         """
-        return self.get_style_property("width")
+        return self.get_style_property("width", default=default)
 
     def set_width_property(self, value):
         """
@@ -636,16 +673,26 @@ class Element:
         """
         self.set_style_property("width", value)
 
-    def get_height_property(self):
+    def get_height_property(self, default=None):
         """
         Gets the value of the CSS property `height` inside the ``style`` attribute.
+
+        Parameters
+        ----------
+        default: Any, default=None
+            The value to return if the property does not exist or the ``style`` attribute does not exist.
 
         Returns
         -------
         str
+            If the property exists.
+
+        None, Any
+            Retuns ``None`` if the property does not exist or the ``style`` attribute does not exist.
+            However, if a `default` value is specified, it will be returned instead.
 
         """
-        return self.get_style_property("height")
+        return self.get_style_property("height", default=default)
 
     def set_height_property(self, value):
         """
@@ -672,6 +719,11 @@ class Element:
 
         If you want to add JavaScript code instead of a single function, use `Element.set_attr` method
         instead.
+
+        Warning
+        -------
+        If you added a Python function, users might be able to call this function from the client-side. Choose wisely
+        the functions you add.
 
         Parameters
         ----------
@@ -750,6 +802,11 @@ class Element:
 
         If you want to add JavaScript code instead of a single function, use `Element.set_attr` method
         instead.
+
+        Warning
+        -------
+        If you added a Python function, users might be able to call this function from the client-side. Choose wisely
+        the functions you add.
 
         Parameters
         ----------
