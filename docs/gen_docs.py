@@ -68,7 +68,7 @@ section_api.add_rst()
 sections.append(section_api)
 
 basic_examples = [e for e in examples if not os.path.basename(e.path).startswith("advanced")]
-section_examples = Section(title="Examples", heading="Basic examples", children=[e for e in examples],
+section_examples = Section(title="Examples", heading="Basic examples", children=[e for e in basic_examples],
                            text="Below you can find some examples of using the package. Some of "
                                 "the examples use files inside a folder called 'assets'. To access "
                                 "this folder, click on this `link <https://github.com/mubarakalmehairbi/ToUI/tree/main/examples>`_.")

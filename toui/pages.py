@@ -548,6 +548,13 @@ class Page:
         self._app._user_vars._gen_sid()
         session['user page'] = copy(self)
         try:
+            pg = session['user page']
+            body_element = pg.get_body_element()
+            if body_element:
+                body_element.set_content(pg._navigation_bar + body_element.to_str()) 
+                body_element.add_content(pg._footer)
+            else:
+                pg.from_str(pg._navigation_bar + pg.to_str() + pg._footer)
             if func:
                 new_return = func()
                 if display_return_value:
@@ -563,12 +570,6 @@ class Page:
                     else:   
                         return new_return
             pg = session['user page']
-            body_element = pg.get_body_element()
-            if body_element:
-                body_element.set_content(pg._navigation_bar + body_element.to_str()) 
-                body_element.add_content(pg._footer)
-            else:
-                pg.from_str(pg._navigation_bar + pg.to_str() + pg._footer)
             del session['user page']
             if "toui-response" in session:
                 response = session['toui-response']

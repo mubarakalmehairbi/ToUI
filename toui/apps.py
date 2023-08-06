@@ -552,7 +552,12 @@ class _App(metaclass=ABCMeta):
         if not self.username_exists(username) and not self.email_exists(email):
             return False
         if self._user_db_type == "sql":
-            user = self._user_cls.query.filter_by(username=username, password=password, email=email, **other_info).first()
+            filter = {"username": username, **other_info}
+            if email is not None:
+                filter["email"] = email
+            if password is not None:
+                filter["password"] = password
+            user = self._user_cls.query.filter_by(**filter).first()
             if user:
                 login_user(user)
                 self._user_vars._set("user-id", user.id)
@@ -560,8 +565,16 @@ class _App(metaclass=ABCMeta):
             else:
                 return False
         elif self._user_db_type == "firebase":
-            user_id = self._firebase_db.where("username", "==", username).get()[0].id
-            return self.signin_user_from_id(user_id)
+            users = self._firebase_db.where("username", "==", username).get()
+            if email is not None:
+                users = users[0].where("email", "==", email).get()
+                if len(users) == 0:
+                    return False
+            if password is not None:
+                users = users[0].where("password", "==", password).get()
+                if len(users) == 0:
+                    return False
+            return self.signin_user_from_id(users[0].id, **other_info)
         
     def signin_user_from_id(self, user_id, **other_info):
         """
@@ -591,7 +604,12 @@ class _App(metaclass=ABCMeta):
                 return False
         elif self._user_db_type == "firebase":
             user = firebase_admin.auth.get_user(user_id)
+
             if user:
+                user_dict = user.to_dict()
+                for key, value in other_info.items():
+                    if user_dict.get(key) != value:
+                        return False
                 self._user_vars._set("user-id", user_id)
                 return True
             else:
@@ -757,7 +775,8 @@ class _App(metaclass=ABCMeta):
         else:
             return False
         
-    def sign_in_using_google(self, client_id, client_secret, after_auth_url, additional_scopes=None, custom_username=None, **other_params):
+    def sign_in_using_google(self, client_id, client_secret, after_auth_url, additional_scopes=None, custom_username=None, custom_host=None,
+                             **other_params):
         """
         Signs in a user using Google (Experimental).
 
@@ -783,6 +802,11 @@ class _App(metaclass=ABCMeta):
         custom_username: str, default=None (optional)
             If you want to use a custom username instead of the user's email, you can pass it here.
 
+        custom_host: str, default=None (optional)
+            Only use this option if you need to change the scheme and host of the redirect uri. For example,
+            if you want to use ``http://127.0.0.1:5000`` instead of ``http://localhost:5000``, you can pass
+            ``http://127.0.0.1:5000`` here.
+
         other_params: kwargs (optional)
             Keyword arguments that can be passed as parameters to authorization url.For more information, see
             `Google's documentation <https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1>`_.
@@ -794,6 +818,10 @@ class _App(metaclass=ABCMeta):
             for s in additional_scopes:
                 scope += f" {s}"
         url = f"/toui-google-sign-in?scope={scope}"
+        if custom_username:
+            url += f"&username={custom_username}"
+        if custom_host:
+            url += f"&host={custom_host}"
         for key, value in other_params.items():
             url += f"&{key}={value}"
         self.user_vars._set('google-after-auth-url', after_auth_url)
@@ -1019,7 +1047,10 @@ class _App(metaclass=ABCMeta):
         client_id = self._google_data['client_id']
         client_secret = self._google_data['client_secret']
         scope = request.args.get("scope")
-        redirect_uri = request.base_url
+        if request.args.get("host"):
+            redirect_uri = request.args.get("host") + "/toui-google-sign-in"
+        else:
+            redirect_uri = request.base_url
         response_type = "code"
         access_type = request.args.get("access_type")
         state = request.args.get("state")
