@@ -820,8 +820,7 @@ class _App(metaclass=ABCMeta):
         url = f"/toui-google-sign-in?scope={scope}"
         if custom_username:
             url += f"&username={custom_username}"
-        if custom_host:
-            url += f"&host={custom_host}"
+        self.user_vars._set('google-redirect-uri-host', custom_host)
         for key, value in other_params.items():
             url += f"&{key}={value}"
         self.user_vars._set('google-after-auth-url', after_auth_url)
@@ -1047,8 +1046,8 @@ class _App(metaclass=ABCMeta):
         client_id = self._google_data['client_id']
         client_secret = self._google_data['client_secret']
         scope = request.args.get("scope")
-        if request.args.get("host"):
-            redirect_uri = request.args.get("host") + "/toui-google-sign-in"
+        if self.user_vars._get('google-redirect-uri-host') is not None:
+            redirect_uri = self.user_vars._get('google-redirect-uri-host') + "/toui-google-sign-in"
         else:
             redirect_uri = request.base_url
         response_type = "code"
@@ -1062,6 +1061,7 @@ class _App(metaclass=ABCMeta):
         username = request.args.get("username")
         if "code" in request.args:
             code = request.args.get("code")
+            self.user_vars._set('google-redirect-uri-host', None)
             dictToSend = {'code':code,
                           'client_id':client_id,
                           'client_secret':client_secret,
@@ -1071,6 +1071,7 @@ class _App(metaclass=ABCMeta):
                                 headers={'Host': 'oauth2.googleapis.com',
                                          'Content-Type':'application/x-www-form-urlencoded'})
             dictFromServer = res.json()
+            info(f"Google response keys: {dictFromServer.keys()}")
             self.user_vars._set('google-access-token', dictFromServer['access_token'])
             if 'refresh_token' in dictFromServer:
                 self.user_vars._set('google-refresh-token', dictFromServer['refresh_token'])
@@ -1082,7 +1083,11 @@ class _App(metaclass=ABCMeta):
             if self.email_exists(email):
                 self.signin_user(email=email, username=username, password=None)
             else:
-                self.signup_user(email=email, username=username, password=None)
+                success = self.signup_user(email=email, username=username, password=None)
+                if success:
+                    self.signin_user(email=email, username=username, password=None)
+                else:
+                    error("Error signing up user")
             return redirect(after_auth_url)
         else:
             # Validating scope

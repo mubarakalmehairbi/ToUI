@@ -9,8 +9,9 @@ help_text = """
 ToUI Command Line Interface
 ===========================
 Usage:
-    toui init
-        Creates a basic ToUI project template in the current directory.
+    toui init [--full]
+        Creates a basic ToUI project template in the current directory. If --full is
+        specified, a full ToUI project template with many features will be created.
 
     toui --minimal-reqs
         Installs the minimal requirements for ToUI to work. This is useful if you want to
@@ -60,21 +61,19 @@ def main():
     if "init" in sys.argv:
         if not "--full" in sys.argv:
             response = requests.get("https://github.com/mubarakalmehairbi/BasicToUIProject/archive/master.zip", stream=True)
-            project_path = "MyBasicToUIProject"
-            if os.path.exists(project_path):
-                i = 1
-                project_path = f"MyBasicToUIProject_{i}"
-                while os.path.exists(project_path):
-                    i += 1
-                    project_path = f"MyBasicToUIProject_{i}"
-            z = zipfile.ZipFile(io.BytesIO(response.content))
-            z.extractall(project_path)
-            
-
+            project_name = "MyBasicToUIProject"
         else:
-            # To be added soon.
-            #requests.get("https://github.com/mubarakalmehairbi/ToUIFullAppTemplate/archive/master.zip")
-            pass
+            response = requests.get("https://github.com/mubarakalmehairbi/FullToUIProject/archive/master.zip")
+            project_name = "MyFullToUIProject"
+        project_path = project_name
+        if os.path.exists(project_path):
+            i = 1
+            project_path = f"{project_name}_{i}"
+            while os.path.exists(project_path):
+                i += 1
+                project_path = f"{project_name}_{i}"
+        z = zipfile.ZipFile(io.BytesIO(response.content))
+        z.extractall(project_path)
 
 if __name__ == "__main__":
     main()

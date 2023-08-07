@@ -6,9 +6,7 @@
 ![Docs](https://img.shields.io/readthedocs/toui)
 
 # Overview
-ToUI is a Python framework for creating user interfaces (web apps and desktop apps)
-from HTML code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML
-is usually required.
+ToUI is a Python framework for creating user interfaces (web apps and desktop apps) from HTML code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML is usually required.
 
 # Why ToUI
 - Converts HTML and CSS files into a fast-responsive app using Python alone.
@@ -22,6 +20,22 @@ is usually required.
     - **Google sign in (experimental)**
     - **Firebase (experimental)**
     - **Password protection for your app**
+
+# Preview
+
+### Calling a Python function from HTML code
+
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/home.gif?raw=True)
+
+### Simple calculator
+
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif?raw=True)
+
+Follow the link below to preview a live app created using ToUI:
+
+https://toui-92bd1594dbed.herokuapp.com/
+
+To download this template and customize to create your own web app, go to this [section](#start-with-a-template).
 
 # How to install
 Run this command:
@@ -87,7 +101,13 @@ To start with a basic template for a ToUI project. Run the command:
 ```
 toui init
 ```
-Alternatively, use this [template](https://github.com/mubarakalmehairbi/BasicToUIProject).
+You can find the same template [here](https://github.com/mubarakalmehairbi/BasicToUIProject).
+
+To start with a full template that includes a **Home** page, an **About** page, **Contact** page, a simple **Calculator** page, a **Sign-in** page (including **Google sign-in**), a simple **Dashboard**, and more, run the following command:
+```
+toui init --full
+``` 
+You can also find the full template [here](https://github.com/mubarakalmehairbi/FullToUIProject).
 
 # Make the app responsive
 Check this [example](https://toui.readthedocs.io/en/latest/Examples.example_1_simple_website.html)
