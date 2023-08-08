@@ -25,11 +25,11 @@ ToUI is a Python framework for creating user interfaces (web apps and desktop ap
 
 ### Calling a Python function from HTML code
 
-![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/home.gif?raw=True)
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/home.gif)
 
 ### Simple calculator
 
-![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif?raw=True)
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif)
 
 Follow the link below to preview a live app created using ToUI:
 
