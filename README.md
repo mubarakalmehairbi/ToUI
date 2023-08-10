@@ -25,11 +25,11 @@ ToUI is a Python framework for creating user interfaces (web apps and desktop ap
 
 ### Calling a Python function from HTML code
 
-![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/home.gif?raw=True)
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/home.gif)
 
 ### Simple calculator
 
-![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif?raw=True)
+![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif)
 
 Follow the link below to preview a live app created using ToUI:
 
@@ -107,7 +107,7 @@ To start with a full template that includes a **Home** page, an **About** page, 
 ```
 toui init --full
 ``` 
-You can also find the full template [here](https://github.com/mubarakalmehairbi/FullToUIProject).
+You can also find the full template [here](https://github.com/mubarakalmehairbi/FullToUIProject). Additionally, you can find a live preview of the template in this link: https://toui-92bd1594dbed.herokuapp.com/
 
 # Make the app responsive
 Check this [example](https://toui.readthedocs.io/en/latest/Examples.example_1_simple_website.html)
