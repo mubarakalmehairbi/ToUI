@@ -34,6 +34,7 @@ except ModuleNotFoundError: pass
 
 try:
     from flask_sqlalchemy import SQLAlchemy
+    from sqlalchemy.exc import OperationalError
     _imported_optional_reqs['flask-sqlalchemy'] = True
 except ModuleNotFoundError: pass
 
@@ -389,7 +390,10 @@ class _App(metaclass=ABCMeta):
             User = user_cls
         self._user_cls = User
         with self.flask_app.app_context():
-            self._db.create_all()
+            try:
+                self._db.create_all()
+            except OperationalError as err:
+                error(f"OperationalError while creating the database: {err}")
 
     @_ReqsChecker(['firebase_admin'])
     def add_user_database_using_firebase(self):
