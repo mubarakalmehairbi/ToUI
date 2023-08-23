@@ -11,3 +11,4 @@ tinycss==0.4
 myst_parser
 pydata_sphinx_theme
 sphinx==5.2.3
+stripe==5.5.0

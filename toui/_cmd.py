@@ -34,7 +34,8 @@ requests==2.31.0"""
 optional_reqs = """flask_sqlalchemy==3.0.3
 Flask_BasicAuth==0.2.0
 Flask_Login==0.6.2
-firebase_admin==6.2.0"""
+firebase_admin==6.2.0
+stripe==5.5.0"""
 
 def install_reqs(reqs):
     for pkg in reqs.splitlines():

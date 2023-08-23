@@ -51,7 +51,7 @@ class _PageSignal(Signal):
     def _open_another_page(**kwargs):
         js_func = "_goTo"
         js_args = []
-        js_kwargs = {"url": kwargs['url'], "new": kwargs['new']}
+        js_kwargs = {"url": kwargs['url'], "new": kwargs['new'], "different_origin": kwargs['different_origin']}
         return {'func': js_func, 'args': js_args, 'kwargs': js_kwargs}
 
 
@@ -547,6 +547,8 @@ class Page:
     def _on_url_request(self, func=None, display_return_value=False):
         self._app._user_vars._gen_sid()
         session['user page'] = copy(self)
+        session['toui-request-url'] = request.url
+        session['toui-page-vars'] = {}
         try:
             pg = session['user page']
             body_element = pg.get_body_element()
@@ -626,7 +628,7 @@ class Page:
         return data_from_js
 
     @_PageSignal(app_types=['Website'])
-    def _open_another_page(self, url, new):
+    def _open_another_page(self, url, new, different_origin):
         if self._app.__class__.__name__ == "DesktopApp":
             if new:
                 pg = Page(url=url)
@@ -634,6 +636,8 @@ class Page:
                 return pg._create_window()
             else:
                 full_url = f"http://localhost:{self._app._port}" + url
+                if different_origin:
+                    full_url = url
                 window = self.get_window()
                 window.load_url(full_url)
                 return window

@@ -8,6 +8,8 @@ import uuid
 import time
 import os
 import requests
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 from copy import copy
 from abc import ABCMeta, abstractmethod
 from collections import UserDict
@@ -25,7 +27,8 @@ from toui._defaults import validate_ws, validate_data
 _imported_optional_reqs = {'flask-login':False,
                           'flask-sqlalchemy':False,
                           'flask-basicauth':False,
-                          'firebase_admin': False}
+                          'firebase_admin': False,
+                          'stripe': False}
 
 try:
     from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, AnonymousUserMixin
@@ -50,7 +53,13 @@ try:
     import firebase_admin.credentials
     import firebase_admin.storage
     import firebase_admin.auth
+    from google.cloud.firestore_v1.base_query import FieldFilter, And
     _imported_optional_reqs['firebase_admin'] = True
+except ModuleNotFoundError: pass
+
+try:
+    import stripe
+    _imported_optional_reqs['stripe'] = True
 except ModuleNotFoundError: pass
 
 
@@ -108,8 +117,16 @@ class _App(metaclass=ABCMeta):
         user_vars: dict
             A dictionary that stores temporary data unique to each user.
 
+        page_vars: dict
+            A dictionary that stores data that is deleted when the user leaves the page.
+
         pages: list
             A list of added `Page` objects.
+
+        firestore: firebase_admin.firestore.Firestore
+            If firebase was added using `add_firebase`, you can access firestore database using this attribute.
+            Otherwise, it will be ``None``. See `Firebase documentation <https://firebase.google.com/docs/firestore>`_ and
+            `Firestore API Reference <https://cloud.google.com/python/docs/reference/firestore/latest/admin_client>`_.
 
 
         .. admonition:: Behind The Scenes
@@ -143,13 +160,14 @@ class _App(metaclass=ABCMeta):
         self.flask_app.route("/toui-download-<path_id>", methods=['POST', 'GET'])(self._download)
         self.flask_app.route("/toui-google-sign-in", methods=['POST', 'GET'])(self._sign_in_using_google)
         self.forbidden_urls = ['/toui-communicate', "/toui-download-<path_id>", "/toui-google-sign-in"]
+        self.firestore = None
         self._validate_ws = validate_ws
         self._validate_data = validate_data
         self._auth = None
         self._user_cls = None
         self._user_db_type = None
         self._firebase_app = None
-        self._firebase_db = None
+        self._firebase_users_db = None
         self._google_data = {}
 
     @abstractmethod
@@ -197,7 +215,7 @@ class _App(metaclass=ABCMeta):
             else:
                 route = self.flask_app.route(page.url, methods=['GET', 'POST'], endpoint=endpoint_)(view_func)
 
-    def open_new_page(self, url, new=False):
+    def open_new_page(self, url, new=False, different_origin=False):
         """
         Opens another URL.
 
@@ -208,6 +226,12 @@ class _App(metaclass=ABCMeta):
         url: str
             URL of the new page.
 
+        new: bool, default=False
+            If ``True``, the URL will be opened in a new tab/window.
+
+        different_origin: bool, default=False
+            Set it as ``True`` only if the URL includes a different origin.
+
         Returns
         -------
         None
@@ -215,7 +239,7 @@ class _App(metaclass=ABCMeta):
         """
         try:
             session.keys()
-            self.get_user_page()._open_another_page(url, new=new)
+            self.get_user_page()._open_another_page(url, new=new, different_origin=different_origin)
         except RuntimeError:
             raise ToUIWrongPlaceException(f"The function `open_new_page` should only be called after the app runs.")
 
@@ -236,10 +260,55 @@ class _App(metaclass=ABCMeta):
         except RuntimeError as e:
             raise ToUIWrongPlaceException(f"The function `get_user_page` should only be called after the app runs.")
 
+    def get_current_url(self):
+        """
+        A method that returns the current full URL.
+
+        This function should only be called after the app starts running.
+
+        Returns
+        -------
+        str
+
+        """
+        try:
+            return session['toui-request-url']
+        except RuntimeError as e:
+            raise ToUIWrongPlaceException(f"The function `get_current_url` should only be called after the app runs.")
+
+    def get_query_params(self, url=None):
+        """
+        A method that returns the query parameters of the current URL.
+
+        Parameters
+        ----------
+        url: str, default=None
+            If specified, the method will return the parameters of this argument. Otherwise, the method will return the
+            query parameters of the current URL.
+
+        Returns
+        -------
+        dict
+            Each key in the dictionary is the name of the parameter, and each value is a list.
+
+        """
+        try:
+            if url is None:
+                url = self.get_current_url()
+            params = parse_qs(urlparse(url).query)
+            return params
+        except RuntimeError as e:
+            raise ToUIWrongPlaceException(f"The function `get_query_params` with no arguments should only be called after the app runs.")
+
     @property
     def user_vars(self):
         """Gets user-specific variables."""
         return self._user_vars
+
+    @property
+    def page_vars(self):
+        """Gets and sets variables that are deleted when user leaves the page."""
+        return session['toui-page-vars']
 
     def download(self, filepath, new=True):
         """
@@ -275,6 +344,7 @@ class _App(metaclass=ABCMeta):
         """
         certificate = firebase_admin.credentials.Certificate(firebase_config)
         self._firebase_app = firebase_admin.initialize_app(certificate, options)
+        self.firestore = firebase_admin.firestore.client()
 
     def store_file_using_firebase(self, destination_path, file_path, bucket_name=None):
         """
@@ -327,7 +397,7 @@ class _App(metaclass=ABCMeta):
         blob.download_to_filename(new_file_path)
 
     @_ReqsChecker(['flask-sqlalchemy', 'flask-login'])
-    def add_user_database_using_sql(self, database_uri, other_columns=[], user_cls=None):
+    def add_user_database_using_sql(self, database_uri, other_columns=[], user_cls=None, table_name="users"):
         """
         Creates a simple database that has data specific to each user.
 
@@ -337,9 +407,10 @@ class _App(metaclass=ABCMeta):
 
         Warning
         -------
-        A table called `users` will be created in the database. If you already have a table with the same name, it might be
-        overwritten.
+        A table called `users` (or whatever you input as table_name) will be created in the database.
+        If you already have a table with the same name, it might be overwritten.
 
+        
         Parameters
         ----------
         database_uri: str
@@ -351,6 +422,9 @@ class _App(metaclass=ABCMeta):
         user_cls: Callable, default=None
             If this parameter is ``None``, a table called `users` will be created. However, if this parameter was set, the
             table `users` will not be created and the parameter `user_cls` will be used instead.
+
+        table_name: str, default="users"
+            The name of the table that will be created/modified in the database.
 
 
         .. admonition:: Behind The Scenes
@@ -366,6 +440,8 @@ class _App(metaclass=ABCMeta):
             - `SQLALCHEMY_DATABASE_URI = database_uri`
 
         """
+        if table_name == "users":
+            UserWarning("Starting from version 4.0.0, the table_name parameter will be required.")
         if self._user_db_type == "firebase":
             raise ToUIOverlapException("This function cannot be called when using Firebase user database.")
         self._user_db_type = "sql"
@@ -375,7 +451,7 @@ class _App(metaclass=ABCMeta):
         self._load_user = self._login_manager.user_loader(self._load_user)
         if not user_cls:
             class User(UserMixin, self._db.Model):
-                __tablename__ = "users"
+                __tablename__ = table_name
 
                 id = self._db.Column(self._db.Integer, primary_key=True)
                 username = self._db.Column(self._db.String, nullable=False, unique=True)
@@ -396,7 +472,7 @@ class _App(metaclass=ABCMeta):
                 error(f"OperationalError while creating the database: {err}")
 
     @_ReqsChecker(['firebase_admin'])
-    def add_user_database_using_firebase(self):
+    def add_user_database_using_firebase(self, collection_name="users"):
         """
         Adds Firebase user database to the app.
 
@@ -404,21 +480,29 @@ class _App(metaclass=ABCMeta):
 
         Warning
         -------
-        A collection called `users` will be created in the database. If you already have a collection with the same name, it might be overwritten.
+        A collection called `users` (or whatever you input as collection_name) will be created in the database.
+        If you already have a collection with the same name, it might be overwritten.
 
         
+        Parameters
+        ----------
+        collection_name: str, default="users"
+            The name of the collection that will be created/modified in the database.
+
         .. admonition:: Behind The Scenes
             :class: tip
             
             Firebase authentication and database are used when calling this function.
             
         """
+        if collection_name == "users":
+            UserWarning("Starting from version 4.0.0, the collection_name parameter will be required.")
         if self._firebase_app is None:
             raise ToUINotAddedError("Firebase is not added to the app. Use `add_firebase` to add it.")
         if self._user_db_type == "sql":
             raise ToUIOverlapException("This function cannot be called when using SQL user database.")
         self._user_db_type = "firebase"
-        self._firebase_db = firebase_admin.firestore.client().collection("users")
+        self._firebase_users_db = firebase_admin.firestore.client().collection("users")
 
     # Website-specific methods
     @staticmethod
@@ -469,7 +553,7 @@ class _App(metaclass=ABCMeta):
         """
         return request
     
-    def redirect_response(self, url):
+    def redirect_response(self, url, code=302, Response=None):
         """
         Use it with `Page.on_url_request` to redirect the user to another page.
 
@@ -489,8 +573,12 @@ class _App(metaclass=ABCMeta):
         url: str
             The URL of the page that the user will be redirected to.
 
+        code: int, default=302
+
+        response: flask.Response, default=None
+
         """
-        return redirect(url)
+        return redirect(url, code=code, Response=Response)
 
     def signup_user(self, username, password=None, email=None, **other_info):
         """
@@ -526,7 +614,7 @@ class _App(metaclass=ABCMeta):
                     error("Password for Firebase authentication needs to be at least 6 characters")
                     return False
             user_record = firebase_admin.auth.create_user(password=password, display_name=username, email=email)
-            self._firebase_db.document(user_record.uid).set({"username": username, 'password': password,
+            self._firebase_users_db.document(user_record.uid).set({"username": username, 'password': password,
                                                                          'email': email, **other_info})
         if self.username_exists(username) or self.email_exists(email):
             return True
@@ -569,16 +657,49 @@ class _App(metaclass=ABCMeta):
             else:
                 return False
         elif self._user_db_type == "firebase":
-            users = self._firebase_db.where("username", "==", username).get()
+            users = self._firebase_users_db.where("username", "==", username).get()
             if email is not None:
-                users = users[0].where("email", "==", email).get()
+                users = [user for user in users if user.get("email") == email]
                 if len(users) == 0:
                     return False
             if password is not None:
-                users = users[0].where("password", "==", password).get()
+                users = [user for user in users if user.get("password") == password]
                 if len(users) == 0:
                     return False
             return self.signin_user_from_id(users[0].id, **other_info)
+
+    def get_users_ids_from_data(self, **data):
+        """
+        Gets the user ids from the users data.
+
+        This can be used to sign-in the users later using `signin_user_from_id`.
+
+        Warning
+        -------
+        This function will return a list of user ids. If the aim is to get a single user id, make sure that the length
+        of the list is 1.
+
+
+        Parameters
+        ----------
+        data
+            The data (keyword arguments) that will be used to get the user ids.
+
+        Returns
+        -------
+        list
+            A list of user ids.
+
+        """
+        self._confirm_user_database_created()
+        if self._user_db_type == "sql":
+            filter = {**data}
+            users = self._user_cls.query.filter_by(**filter).all()
+            return [user.id for user in users]
+        elif self._user_db_type == "firebase":
+            filter = And(filters=[FieldFilter(key, "==", value) for key, value in data.items()])
+            users = self._firebase_users_db.where(filter=filter).get()
+            return [user.id for user in users]
         
     def signin_user_from_id(self, user_id, **other_info):
         """
@@ -610,7 +731,7 @@ class _App(metaclass=ABCMeta):
             user = firebase_admin.auth.get_user(user_id)
 
             if user:
-                user_dict = user.to_dict()
+                user_dict = self._firebase_users_db.document(user.uid).get().to_dict()
                 for key, value in other_info.items():
                     if user_dict.get(key) != value:
                         return False
@@ -643,7 +764,7 @@ class _App(metaclass=ABCMeta):
                 return None
             return getattr(current_user, key)
         elif self._user_db_type == "firebase":
-            return self._firebase_db.document(self._user_vars._get("user-id")).get().to_dict().get(key)
+            return self._firebase_users_db.document(self._user_vars._get("user-id")).get().to_dict().get(key)
 
     def set_current_user_data(self, key, value):
         """
@@ -681,7 +802,7 @@ class _App(metaclass=ABCMeta):
             self._db.session.commit()
             return True
         elif self._user_db_type == "firebase":
-            self._firebase_db.document(self._user_vars._get("user-id")).update({key: value})
+            self._firebase_users_db.document(self._user_vars._get("user-id")).update({key: value})
             return True
         
     def get_current_user_id(self):
@@ -729,7 +850,7 @@ class _App(metaclass=ABCMeta):
             else:
                 return False
         elif self._user_db_type == "firebase":
-            if len(self._firebase_db.where("username", "==", username).get()) > 0:
+            if len(self._firebase_users_db.where("username", "==", username).get()) > 0:
                 info(f"User {username} exists")
                 return True
             else:
@@ -758,7 +879,7 @@ class _App(metaclass=ABCMeta):
             else:
                 return False
         elif self._user_db_type == "firebase":
-            if len(self._firebase_db.where("email", "==", email).get()) > 0:
+            if len(self._firebase_users_db.where("email", "==", email).get()) > 0:
                 return True
             else:
                 return False
@@ -829,6 +950,151 @@ class _App(metaclass=ABCMeta):
             url += f"&{key}={value}"
         self.user_vars._set('google-after-auth-url', after_auth_url)
         self.open_new_page(url=url)
+
+    @_ReqsChecker(['stripe'])
+    def checkout_using_stripe(self, secret_key, **kwargs):
+        """
+        Opens a Stripe checkout page.
+
+        Parameters
+        ----------
+        secret_key: str
+            The secret key of your Stripe account.
+
+        kwargs
+            Keyword arguments that can be passed to `stripe.checkout.Session.create <https://stripe.com/docs/api/checkout/sessions/create?lang=python>`_.
+        
+        """
+        session = stripe.checkout.Session.create(api_key=secret_key, **kwargs)
+        self.open_new_page(url=session.url, different_origin=True)
+
+    def _checkout_using_paypal(self, api_username, api_password, signature, version, sandbox=False, **kwargs):
+        """
+        NOT USED: Opens a PayPal checkout page.
+
+        Parameters
+        ----------
+        api_username: str
+            The API username of your PayPal account.
+
+        api_password: str
+            The API password of your PayPal account.
+
+        signature: str
+            The signature of your PayPal account.
+
+        version: str, default="204.0"
+            The version of the PayPal API.
+
+        sandbox: bool, default=True
+            If ``True``, the sandbox version of PayPal will be used. Otherwise, the live version will be used.
+
+        kwargs
+            Keyword arguments that can be passed to `SetExpressCheckout <https://developer.paypal.com/api/nvp-soap/set-express-checkout-nvp/>`_
+            excluding the following parameters: `USER`, `PWD`, `SIGNATURE`, and `METHOD`.
+
+        """
+        data = {  
+            'USER': api_username,
+            'PWD': api_password,
+            'SIGNATURE': signature,
+            'METHOD': 'SetExpressCheckout',
+            **kwargs
+        }
+        if sandbox:
+            nvp_url = 'https://api-3t.sandbox.paypal.com/nvp'
+            checkout_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_express-checkout&token='
+        else:
+            nvp_url = 'https://api-3t.paypal.com/nvp'
+            checkout_url = 'https://www.paypal.com/cgi-bin/webscr?cmd=_express-checkout&token='
+        response = requests.post(nvp_url, data=data)
+        response_dict = dict(parse_qs(response.text))
+        debug(f"PayPal response: {response_dict}")
+        if 'Failure' in response_dict['ACK'] or 'FailureWithWarning' in response_dict['ACK']:
+            error(f"PayPal error, see the following response: {json.dumps(response_dict, indent=4)}")
+        token = response_dict['TOKEN']
+        checkout_url += token
+        self.open_new_page(url=checkout_url, different_origin=True)
+
+    def checkout_using_paypal(self, client_id, client_secret, sandbox=True, **kwargs):
+        """
+        Checkout using PayPal API.
+
+        1. You need to first get the client ID and the client secret for your PayPal account. See the following
+        link for more information: `<https://developer.paypal.com/api/rest/>`_.
+
+        2. Read the following link to learn about the key word arguments that you need to pass to this function:
+        `<https://developer.paypal.com/docs/api/orders/v2/#orders_create>`_ (only the parameters
+        under the `REQUEST BODY` section).
+
+        3. Call this function and pass the client ID and the client secret as the first two arguments. Then pass
+        the keyword arguments that you learned about in step 2.
+
+        4. The function will return a dictionary. You might need to store some of the data in this dictionary
+        for later use. See the `Responses` section in the following link for more information:
+        `<https://developer.paypal.com/docs/api/orders/v2/#:~:text=payment%20with%20PayPal.-,Responses,-200A%20successful>`_.
+
+        Parameters
+        ----------
+        client_id: str
+            The client ID of your PayPal account.
+
+        client_secret: str
+            The client secret of your PayPal account.
+
+        sandbox: bool, default=True
+            If ``True``, the sandbox version of PayPal will be used. Otherwise, the live version will be used.
+
+        kwargs
+            Keyword arguments that can be passed to `Create order request <https://developer.paypal.com/docs/api/orders/v2/#orders_create>`_
+            under the `REQUEST BODY` section.
+
+        Returns
+        -------
+        dict
+            The response of the PayPal API. You might need to store some of the data in this dictionary
+            for later use. See the `Responses` section in the following link for more information:
+            `Create order request <https://developer.paypal.com/docs/api/orders/v2/#:~:text=payment%20with%20PayPal.-,Responses,-200A%20successful>`_.
+        
+        """
+        if sandbox:
+            origin = "https://api-m.sandbox.paypal.com"
+        else:
+            origin = "https://api-m.paypal.com"
+        access_token = self._get_paypal_access_token(client_id, client_secret, origin + '/v1/oauth2/token')
+
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}',
+        }
+
+        data = kwargs
+
+        response = requests.post('https://api-m.sandbox.paypal.com/v2/checkout/orders', headers=headers, data=json.dumps(data))
+        response_dict = response.json()
+        if response.status_code != 201:
+            error(f"PayPal error, see the following response: {json.dumps(response_dict, indent=4)}")
+        else:
+            debug(f"PayPal response: {json.dumps(response_dict, indent=4)}")
+        url = None
+        for link in response_dict['links']:
+            if link['rel'] in ['approve', 'payer-action']:
+                url = link['href']
+                break
+        if url is None:
+            error(f"Could not find PayPal checkout link in the following response: {json.dumps(response_dict, indent=4)}")
+        else:
+            self.open_new_page(url=url, different_origin=True)
+        return response_dict
+
+    def _get_paypal_access_token(self, client_id, client_secret, url):
+        response = requests.post(url,
+                                 data={'grant_type': 'client_credentials'},
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"},
+                                 auth=(client_id, client_secret))
+        debug(f"PayPal access token response: {json.dumps(response.json(), indent=4)}")
+        return response.json()['access_token']
 
     @_ReqsChecker(['flask-basicauth'])
     def add_restriction(self, username, password):
@@ -1085,7 +1351,13 @@ class _App(metaclass=ABCMeta):
             if username is None:
                 username = email
             if self.email_exists(email):
-                self.signin_user(email=email, username=username, password=None)
+                users_ids = self.get_users_ids_from_data(email=email)
+                if len(users_ids) != 1:
+                    error(f"More than one user with email {email} exists in the database.")
+                else:
+                    success = self.signin_user_from_id(users_ids[0])
+                    if not success:
+                        error("Error signing in user")
             else:
                 success = self.signup_user(email=email, username=username, password=None)
                 if success:

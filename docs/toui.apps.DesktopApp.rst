@@ -15,13 +15,18 @@ Methods
    toui.apps.DesktopApp.add_restriction
    toui.apps.DesktopApp.add_user_database_using_firebase
    toui.apps.DesktopApp.add_user_database_using_sql
+   toui.apps.DesktopApp.checkout_using_paypal
+   toui.apps.DesktopApp.checkout_using_stripe
    toui.apps.DesktopApp.download
    toui.apps.DesktopApp.email_exists
+   toui.apps.DesktopApp.get_current_url
    toui.apps.DesktopApp.get_current_user_data
    toui.apps.DesktopApp.get_current_user_id
    toui.apps.DesktopApp.get_file_from_firebase
+   toui.apps.DesktopApp.get_query_params
    toui.apps.DesktopApp.get_request
    toui.apps.DesktopApp.get_user_page
+   toui.apps.DesktopApp.get_users_ids_from_data
    toui.apps.DesktopApp.is_signed_in
    toui.apps.DesktopApp.open_new_page
    toui.apps.DesktopApp.redirect_response

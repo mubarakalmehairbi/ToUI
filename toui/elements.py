@@ -138,8 +138,11 @@ class Element:
         if len(tags) > 0:
             new = tags[0]
         else:
-            new = html_str
-        self._element.replace_with(new)
+            return
+        if self._element.parent is None:
+            self._element = tags[0]
+        else:
+            self._element.replace_with(new)
 
     def to_str(self):
         """
@@ -363,6 +366,37 @@ class Element:
         if value is None:
             value = default
         return value
+    
+    def get_class_list(self):
+        """
+        Gets all classes of the HTML element as a list.
+        """
+        values = self._element.attrs.get("class")
+        if values is None:
+            return []
+        return values
+
+    def remove_from_class_list(self, cls):
+        """
+        Removes all occurences of the specified class from the HTML element.
+        """
+        values = self._element.attrs.get("class")
+        if values is None:
+            return
+        values = [v for v in values if v != cls]
+        self.set_attr("class", " ".join(values))
+
+    def add_to_class_list(self, cls):
+        """
+        Adds the specified class to the HTML element if it does not exist.
+        """
+        values = self._element.attrs.get("class")
+        if values is None:
+            self.set_attr("class", cls)
+            return
+        if not cls in values:
+            values.append(cls)
+        self.set_attr("class", " ".join(values))
 
     @_ElementSignal()
     def set_attr(self, name, value):
@@ -551,9 +585,11 @@ class Element:
         """
         self._element.clear()
         self._manage_content_functions(content)
-        content = str(content)
-        content = BeautifulSoup(content, features="html.parser")
-        self._element.append(content)
+        soap = BeautifulSoup(str(content), features="html.parser")
+        self._element.append(soap)
+        if isinstance(content, Element):
+            content._signal_mode = self._signal_mode
+            content._parent_page = self._parent_page
 
     @_ElementSignal()
     def add_content(self, content):
@@ -567,9 +603,11 @@ class Element:
 
         """
         self._manage_content_functions(content)
-        content = str(content)
-        content = BeautifulSoup(content, features="html.parser")
-        self._element.append(content)
+        soap = BeautifulSoup(str(content), features="html.parser")
+        self._element.append(soap)
+        if isinstance(content, Element):
+            content._signal_mode = self._signal_mode
+            content._parent_page = self._parent_page
 
     def get_style_property(self, property, default=None):
         """

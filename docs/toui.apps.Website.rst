@@ -15,13 +15,18 @@ Methods
    toui.apps.Website.add_restriction
    toui.apps.Website.add_user_database_using_firebase
    toui.apps.Website.add_user_database_using_sql
+   toui.apps.Website.checkout_using_paypal
+   toui.apps.Website.checkout_using_stripe
    toui.apps.Website.download
    toui.apps.Website.email_exists
+   toui.apps.Website.get_current_url
    toui.apps.Website.get_current_user_data
    toui.apps.Website.get_current_user_id
    toui.apps.Website.get_file_from_firebase
+   toui.apps.Website.get_query_params
    toui.apps.Website.get_request
    toui.apps.Website.get_user_page
+   toui.apps.Website.get_users_ids_from_data
    toui.apps.Website.is_signed_in
    toui.apps.Website.open_new_page
    toui.apps.Website.redirect_response

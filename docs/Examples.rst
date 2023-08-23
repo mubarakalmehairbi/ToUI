@@ -33,3 +33,4 @@ Advanced examples
    Examples.advanced_example_3_toui_with_google_sign_in
    Examples.advanced_example_4_toui_with_firebase
    Examples.advanced_example_5_toui_with_sql_user_database
+   Examples.advanced_example_6_widgets

@@ -11,10 +11,12 @@ Methods
    :toctree:
 
    toui.elements.IFrameElement.add_content
+   toui.elements.IFrameElement.add_to_class_list
    toui.elements.IFrameElement.del_attr
    toui.elements.IFrameElement.from_bs4_tag
    toui.elements.IFrameElement.from_str
    toui.elements.IFrameElement.get_attr
+   toui.elements.IFrameElement.get_class_list
    toui.elements.IFrameElement.get_content
    toui.elements.IFrameElement.get_element
    toui.elements.IFrameElement.get_elements
@@ -31,6 +33,7 @@ Methods
    toui.elements.IFrameElement.has_attr
    toui.elements.IFrameElement.on
    toui.elements.IFrameElement.onclick
+   toui.elements.IFrameElement.remove_from_class_list
    toui.elements.IFrameElement.set_attr
    toui.elements.IFrameElement.set_content
    toui.elements.IFrameElement.set_height_property

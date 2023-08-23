@@ -277,10 +277,15 @@ function _addScript(kwargs) {
 function _goTo(kwargs) {
     const url = kwargs['url']
     const newTab = kwargs['new']
+    const diffOrigin = kwargs['different_origin']
+    var urlOrigin = location.origin
+    if (diffOrigin == true) {
+        urlOrigin = ""
+    }
     if (newTab == true) {
-        window.open(location.origin + url)
+        window.open(urlOrigin + url)
     } else {
-        window.open(location.origin + url, "_self")
+        window.open(urlOrigin + url, "_self")
     }
 }
 
