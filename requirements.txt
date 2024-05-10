@@ -4,3 +4,4 @@ flask_sock==0.6.0
 pywebview==4.1
 tinycss==0.4
 requests==2.31.0
+Werkzeug==2.3.3
