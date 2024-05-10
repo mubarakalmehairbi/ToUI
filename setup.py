@@ -1,6 +1,6 @@
 import setuptools
 import sys
-from toui import __version__
+#from toui import __version__
 
 with open("README.md", "r") as file:
     long_description = file.read()
@@ -11,7 +11,7 @@ if "--small" in sys.argv:
     sys.argv.remove('--small')
 
 name = "ToUI"
-version = __version__
+version = "v3.5.0-alpha.2"
 author = "Mubarak Almehairbi"
 description = "Creates user interfaces (websites and desktop apps) from HTML easily"
 package_name = "toui"

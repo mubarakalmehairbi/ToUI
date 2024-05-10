@@ -47,6 +47,7 @@ pip install toui
 To install only the required dependencies, run these commands:
 ```shell
 pip install --no-deps toui
+pip install "requests>=2.31.0"
 toui --minimal-reqs
 ```
 
