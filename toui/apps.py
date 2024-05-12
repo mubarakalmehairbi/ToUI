@@ -1262,6 +1262,7 @@ class _App(metaclass=ABCMeta):
                 args = data_dict['args']
                 url = data_dict['url']
                 new_html = data_dict['html']
+                output_id = data_dict['outputId']
                 new_page = Page(url=url)
                 new_page.from_str(new_html)
                 new_page._app = self
@@ -1279,7 +1280,9 @@ class _App(metaclass=ABCMeta):
                 session['user page'] = new_page
                 try:
                     if new_page._func_exists(func):
-                        new_page._call_func(func, *args)
+                        output = new_page._call_func(func, *args)
+                        time.sleep(12)
+                        ws.send(json.dumps({"python_output": output,"output_id": output_id}))
                     del session['user page']
                 except Exception as e:
                     del session['user page']

@@ -11,7 +11,7 @@ if "--small" in sys.argv:
     sys.argv.remove('--small')
 
 name = "ToUI"
-version = "v3.5.0-alpha.3"
+version = "v3.5.0-alpha.6"
 author = "Mubarak Almehairbi"
 description = "Creates user interfaces (websites and desktop apps) from HTML easily"
 package_name = "toui"
@@ -41,7 +41,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     package_data={'images': ['images/*']},
-    entry_points={'console_scripts': ['toui=_cmd:main']},
+    entry_points={'console_scripts': ['toui=touicmd._cmd:main']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

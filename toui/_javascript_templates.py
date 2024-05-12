@@ -13,6 +13,8 @@ socket.addEventListener('message', ev => {
 const urlPath = location.pathname
 const _appType = "{app_type}"
 _touiFiles = {}
+_pythonOutputs = {}
+_currentOutputId = 1
 _pywebviewIsLoaded = false
 async function _toPy(...args) {
     var func = args.shift()
@@ -29,11 +31,14 @@ async function _toPy(...args) {
         }
     }
 
+    const currentOutputId = _currentOutputId;
+    _currentOutputId++
     var json = {type: "page",
                 func: func,
                 args: args,
                 "selector-to-element": selector_to_element,
-                url: urlPath}
+                url: urlPath,
+                "outputId": currentOutputId}
     _manageProperties()
     json['html'] = _getDoc()
     json['uid'] = await _getUid()
@@ -45,6 +50,22 @@ async function _toPy(...args) {
     } else {
         socket.send(jsonstring)
     }
+    var timeWaited = 0
+    const timeLimit = 10000
+    return new Promise(resolve => {
+        function checkOutput() {
+            if (currentOutputId in _pythonOutputs) {
+                const output = _pythonOutputs[currentOutputId]
+                resolve(output);
+            } else if (timeWaited >= timeLimit) {
+                reject()
+            } else {
+                window.setTimeout(checkOutput, 150); 
+                timeWaited = timeWaited + 150
+            }
+        }
+        checkOutput();
+    });
 }
 
 async function _getUid() {
@@ -298,6 +319,12 @@ function _resizeEmbed(element) {
 
 function _findAndExecute(jsonString) {
     var instructions = JSON.parse(jsonString)
+    if (instructions['python_output'] != null) {
+        var output = instructions['python_output']
+        var outputId = instructions['output_id']
+        _setPythonOutput(outputId, output)
+        return
+    }
     var func = instructions['func']
     var kwargs = instructions['kwargs']
     if (func == "_replaceElement") {
@@ -333,12 +360,18 @@ function _findAndExecute(jsonString) {
     if (func == "_saveFile") {
         _saveFile(kwargs)
     }
-}"""
+}
+
+function _setPythonOutput(outputId, output) {
+    _pythonOutputs[outputId] = output
+}
+"""
 
 def custom_func(name):
     text = f"""
-    function {name}(...args) {{
-        _toPy('{name}', ...args)
+    async function {name}(...args) {{
+        const output = await _toPy('{name}', ...args)
+        return output
     }}
     """
     return text
