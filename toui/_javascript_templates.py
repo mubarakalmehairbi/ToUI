@@ -44,9 +44,9 @@ async function _toPy(...args) {
     json['uid'] = await _getUid()
     var jsonstring = JSON.stringify(json)
     if (socket.readyState === 0) {
-        socket.onopen = async function() {
+        socket.addEventListener("open", async (event) => {
             socket.send(jsonstring);
-        }
+        })
     } else {
         socket.send(jsonstring)
     }
@@ -56,8 +56,10 @@ async function _toPy(...args) {
         function checkOutput() {
             if (currentOutputId in _pythonOutputs) {
                 const output = _pythonOutputs[currentOutputId]
+                delete _pythonOutputs[currentOutputId]
                 resolve(output);
             } else if (timeWaited >= timeLimit) {
+                delete _pythonOutputs[currentOutputId]
                 reject()
             } else {
                 window.setTimeout(checkOutput, 150); 

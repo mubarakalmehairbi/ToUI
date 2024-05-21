@@ -1281,7 +1281,6 @@ class _App(metaclass=ABCMeta):
                 try:
                     if new_page._func_exists(func):
                         output = new_page._call_func(func, *args)
-                        time.sleep(12)
                         ws.send(json.dumps({"python_output": output,"output_id": output_id}))
                     del session['user page']
                 except Exception as e:
