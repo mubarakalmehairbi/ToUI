@@ -5,6 +5,11 @@
 ![Latest version](https://img.shields.io/pypi/v/toui)
 ![Docs](https://img.shields.io/readthedocs/toui)
 
+> [!WARNING]
+> The project is no longer in active development. You are still welcome to open any issues.
+> ### Why?
+> As far as I am aware, the library isn't being used in any project. Let me know if you are using it in your project.
+
 # Overview
 ToUI is a Python framework for creating user interfaces (web apps and desktop apps) from HTML code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML is usually required.
 
