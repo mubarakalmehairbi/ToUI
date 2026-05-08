@@ -13,8 +13,6 @@
 # Overview
 ToUI is a Python framework for creating user interfaces (web apps and desktop apps) from HTML code easily. It allows you to call your Python functions from HTML. No JavaScript knowledge is required, but some knowledge of HTML is usually required.
 
-Live preview of a web app created using ToUI: https://toui-92bd1594dbed.herokuapp.com/
-
 # Why ToUI
 - Converts HTML and CSS files into a fast-responsive app using Python alone.
 - Simple to understand for programmers who only know Python and HTML.
@@ -38,9 +36,6 @@ Live preview of a web app created using ToUI: https://toui-92bd1594dbed.herokuap
 
 ![gif](https://github.com/mubarakalmehairbi/ToUI/blob/main/images/calculator.gif)
 
-Follow the link below to preview a live app created using ToUI:
-
-https://toui-92bd1594dbed.herokuapp.com/
 
 To download this template and customize to create your own web app, go to this [section](#start-with-a-template).
 
@@ -115,7 +110,7 @@ To start with a full template that includes a **Home** page, an **About** page, 
 ```
 toui init --full
 ``` 
-You can also find the full template [here](https://github.com/mubarakalmehairbi/FullToUIProject). Additionally, you can find a live preview of the template in this link: https://toui-92bd1594dbed.herokuapp.com/
+You can also find the full template [here](https://github.com/mubarakalmehairbi/FullToUIProject).
 
 # Make the app responsive
 Check this [example](https://toui.readthedocs.io/en/latest/Examples.example_1_simple_website.html)
@@ -130,9 +125,6 @@ app = Website(__name__)
 flask_app = app.flask_app
 ```
 Then you need to deploy the `flask_app` and not the `app`.
-
-# How to contribute
-ToUI welcomes contribution, small or big. For anyone who wants to contribute please check the [contribution page](https://toui.readthedocs.io/en/latest/CONTRIBUTING.html).
 
 # License and Copyrights
 Copyrights (c) 2023 Mubarak Almehairbi.
