@@ -58,7 +58,7 @@ Sometimes you can find some JavaScript functions that update HTML documents or H
 
 
 ### **Improve security**
-If you found a security vulnerability, report it first **privately** in [GitHub](https://github.com/mubarakalmehairbi/ToUI/security) which is the preferred way or via email (mubarak.almehairbi1@gmail.com). Then we can discuss how to work on it. However, if there is no security vulnerability and you just want to provide an extra layer of security, you can contribute without reporting a security vulnerability.
+If you found a security vulnerability, report it first **privately** in [GitHub](https://github.com/mubarakalmehairbi/ToUI/security). Then we can discuss how to work on it. However, if there is no security vulnerability and you just want to provide an extra layer of security, you can contribute without reporting a security vulnerability.
 
 ### **Tests and examples**
 In "examples" and "tests" folders, you can add new examples and tests to benefit the community. This is probably the most simple way to contribute to ToUI.
